@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard — Manutenção em POP</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -142,7 +143,10 @@ tr:hover td{background:var(--g50)}
 </div>
 
 <script>
-  const MOCK_DATA = [{"data_hora": "2026-07-14T10:16:00", "pop": "SP-AAS-VMC", "tecnico": "Gabriel", "tipo": "Indisponibilidade", "item": "Interface", "item_defeituoso": "—", "observacoes": "Feito a troca do transceiver.", "abertura": "2026-07-14T10:16:00", "chegada": "2026-07-14T12:18:00", "validacao": "2026-07-14T12:24:00", "data_hora_fmt": "2026-07-14T10:16:00", "abertura_fmt": "2026-07-14T10:16:00", "chegada_fmt": "2026-07-14T12:18:00", "validacao_fmt": "2026-07-14T12:24:00"}, {"data_hora": "2026-07-13T22:05:00", "pop": "SP-CAS-JBD", "tecnico": "Marcos Lima", "tipo": "Verificação", "item": "Energia", "item_defeituoso": "Retificadora com alarme", "observacoes": "Alarme resolvido após reset.", "abertura": "2026-07-13T21:40:00", "chegada": "2026-07-13T22:30:00", "validacao": "2026-07-13T23:05:00", "data_hora_fmt": "2026-07-13T22:05:00", "abertura_fmt": "2026-07-13T21:40:00", "chegada_fmt": "2026-07-13T22:30:00", "validacao_fmt": "2026-07-13T23:05:00"}, {"data_hora": "2026-07-13T09:30:00", "pop": "SP-JIU-CEN", "tecnico": "Renata Alves", "tipo": "Acompanhamento", "item": "—", "item_defeituoso": "—", "observacoes": "Acompanhamento de obra de expansão de fibra.", "abertura": "2026-07-13T09:00:00", "chegada": "2026-07-13T09:30:00", "validacao": "2026-07-13T11:45:00", "data_hora_fmt": "2026-07-13T09:30:00", "abertura_fmt": "2026-07-13T09:00:00", "chegada_fmt": "2026-07-13T09:30:00", "validacao_fmt": "2026-07-13T11:45:00"}, {"data_hora": "2026-07-12T14:12:00", "pop": "SP-VIN-APS", "tecnico": "Gabriel", "tipo": "Improdutiva", "item": "—", "item_defeituoso": "—", "observacoes": "Cliente ausente, não foi possível acessar o local.", "abertura": "2026-07-12T13:30:00", "chegada": "2026-07-12T14:12:00", "validacao": "2026-07-12T14:20:00", "data_hora_fmt": "2026-07-12T14:12:00", "abertura_fmt": "2026-07-12T13:30:00", "chegada_fmt": "2026-07-12T14:12:00", "validacao_fmt": "2026-07-12T14:20:00"}, {"data_hora": "2026-07-11T08:47:00", "pop": "SP-ITA-BSE", "tecnico": "Marcos Lima", "tipo": "Indisponibilidade", "item": "Equipamento", "item_defeituoso": "Switch de acesso sem energia", "observacoes": "Substituída fonte de alimentação.", "abertura": "2026-07-11T08:10:00", "chegada": "2026-07-11T08:47:00", "validacao": "2026-07-11T09:52:00", "data_hora_fmt": "2026-07-11T08:47:00", "abertura_fmt": "2026-07-11T08:10:00", "chegada_fmt": "2026-07-11T08:47:00", "validacao_fmt": "2026-07-11T09:52:00"}];
+  const SUPABASE_URL = 'https://awbehzomxcsbasgltlih.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3YmVoem9teGNzYmFzZ2x0bGloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODUyMjYsImV4cCI6MjA5NTU2MTIyNn0.9zuX49pdzjdehf8pyuRxYm1QPcqHgAWoKyVYXdohLDY';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const TABLE_NAME = 'manutencao_pop';
 
   let registrosAtuais = [];
   let registrosFiltrados = [];
@@ -152,13 +156,24 @@ tr:hover td{background:var(--g50)}
     document.getElementById('emptyMsg').style.display = 'none';
     document.getElementById('corpoTabela').innerHTML = '';
 
-    setTimeout(() => {
-      registrosAtuais = MOCK_DATA.slice();
-      document.getElementById('loadingMsg').style.display = 'none';
-      popularFiltros();
-      aplicarFiltro();
-      atualizarStats();
-    }, 300);
+    supabaseClient
+      .from(TABLE_NAME)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        document.getElementById('loadingMsg').style.display = 'none';
+        if (error) {
+          console.error(error);
+          document.getElementById('emptyMsg').textContent = 'Erro ao carregar os dados: ' + error.message;
+          document.getElementById('emptyMsg').style.display = 'block';
+          registrosAtuais = [];
+        } else {
+          registrosAtuais = (data || []).map(r => ({ ...r, data_hora: r.created_at, data_hora_fmt: r.created_at }));
+        }
+        popularFiltros();
+        aplicarFiltro();
+        atualizarStats();
+      });
   }
 
   function popularFiltros() {
@@ -213,15 +228,15 @@ tr:hover td{background:var(--g50)}
     registrosFiltrados.forEach(r => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${escapeHtml(r.data_hora_fmt)}</td>
+        <td>${fmtDT(r.data_hora_fmt)}</td>
         <td>${`<span class="pop-badge">${escapeHtml(r.pop)}</span>`}</td>
         <td>${escapeHtml(r.tecnico)}</td>
         <td>${`<span class="tipo-badge">${escapeHtml(r.tipo)}</span>`}</td>
         <td>${escapeHtml(r.item)}</td>
         <td>${escapeHtml(r.item_defeituoso)}</td>
-        <td>${escapeHtml(r.abertura_fmt)}</td>
-        <td>${escapeHtml(r.chegada_fmt)}</td>
-        <td>${escapeHtml(r.validacao_fmt)}</td>
+        <td>${fmtDT(r.abertura)}</td>
+        <td>${fmtDT(r.chegada)}</td>
+        <td>${fmtDT(r.validacao)}</td>
       `;
       corpo.appendChild(tr);
     });
@@ -243,6 +258,13 @@ tr:hover td{background:var(--g50)}
     document.getElementById('statHoje').textContent = enviadosHoje;
   }
 
+  function fmtDT(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d)) return String(iso);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  }
+
   function escapeHtml(str) {
     if (!str) return '';
     const div = document.createElement('div');
@@ -260,7 +282,7 @@ tr:hover td{background:var(--g50)}
       alert('Não há registros para exportar.');
       return;
     }
-    const dados = registrosFiltrados.map(r => ({ 'Data/Hora': r.data_hora_fmt || '', 'POP': r.pop || '', 'Técnico': r.tecnico || '', 'Tipo': r.tipo || '', 'Item': r.item || '', 'Item Defeituoso': r.item_defeituoso || '', 'Observações': r.observacoes || '', 'Abertura': r.abertura_fmt || '', 'Chegada': r.chegada_fmt || '', 'Validação': r.validacao_fmt || '' }));
+    const dados = registrosFiltrados.map(r => ({ 'Data/Hora': fmtDT(r.data_hora_fmt), 'POP': r.pop || '', 'Técnico': r.tecnico || '', 'Tipo': r.tipo || '', 'Item': r.item || '', 'Item Defeituoso': r.item_defeituoso || '', 'Observações': r.observacoes || '', 'Abertura': fmtDT(r.abertura), 'Chegada': fmtDT(r.chegada), 'Validação': fmtDT(r.validacao) }));
     const ws = XLSX.utils.json_to_sheet(dados);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Registros');

@@ -7,6 +7,7 @@
 <title>Manutenção em POP</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--gd:#8CBF3F;--gm:#8CBF3F;--gl:#f4f9ec;--red:#c0392b;--g50:#f7f8fa;--g100:#eef0f3;--g300:#d0d5dd;--g500:#6b7585;--g800:#2d3444;--bdr:#d4ddd8;--r:6px;--rl:10px;}
@@ -300,6 +301,34 @@ function buildDocElement(){
   foot.innerHTML=`<span>Manutenção em POP — Net Turbo Telecom</span><span>Gerado em ${dateStr}</span>`;root.appendChild(foot);return root;
 }
 
+const SUPABASE_URL='https://awbehzomxcsbasgltlih.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3YmVoem9teGNzYmFzZ2x0bGloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODUyMjYsImV4cCI6MjA5NTU2MTIyNn0.9zuX49pdzjdehf8pyuRxYm1QPcqHgAWoKyVYXdohLDY';
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+async function salvarNoSupabase(){
+  const v=id=>{const el=document.getElementById(id);return(el&&el.value.trim())?el.value.trim():null;};
+  const toISO=id=>{const el=document.getElementById(id);return(el&&el.value)?new Date(el.value).toISOString():null;};
+  const tipo=v('f-tipo');
+  const registro={
+    pop:v('f-pop'),
+    tecnico:v('f-tecnico'),
+    tipo:tipo,
+    item:v('f-item'),
+    item_defeituoso:v('f-item-defeituoso'),
+    interface_equipamento:v('f-interface-equipamento'),
+    interface_interface:v('f-interface-interface'),
+    interface_identificacao:v('f-interface-identificacao'),
+    observacoes:v('f-observacoes'),
+    acompanhamento:v('f-acompanhamento'),
+    improdutiva:v('f-improdutiva'),
+    abertura:toISO('f-abertura'),
+    chegada:toISO('f-chegada'),
+    validacao:toISO('f-validacao')
+  };
+  const{error}=await supabaseClient.from('manutencao_pop').insert(registro);
+  if(error)throw error;
+}
+
 function waitForImages(el){const imgs=[...el.querySelectorAll('img')];if(!imgs.length)return Promise.resolve();return Promise.all(imgs.map(img=>{if(img.complete&&img.naturalWidth>0)return Promise.resolve();return new Promise(r=>{img.onload=r;img.onerror=r;});}));}
 
 async function doPDF(){
@@ -340,7 +369,13 @@ async function doPDF(){
     const fileName=`Manutencao_${pop}_${dt}.pdf`;
     pdf.save(fileName);
     document.body.removeChild(el);
-    hideSpinner();showToast('✅ PDF gerado com sucesso!','success');
+    updateSpinner('Registrando na nuvem...');
+    try{
+      await salvarNoSupabase();
+      hideSpinner();showToast('✅ PDF gerado e registrado com sucesso!','success');
+    }catch(ue){
+      hideSpinner();showToast('⚠️ PDF gerado, mas houve erro ao registrar: '+ue.message,'warn');
+    }
   }catch(e){if(document.body.contains(el))document.body.removeChild(el);hideSpinner();alert('Erro ao gerar PDF: '+e.message);}
 }
 

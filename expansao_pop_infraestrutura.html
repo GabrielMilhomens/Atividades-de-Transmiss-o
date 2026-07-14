@@ -7,6 +7,7 @@
 <title>Expansão em POP - Infraestrutura</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--gd:#8CBF3F;--gm:#8CBF3F;--gl:#f4f9ec;--red:#c0392b;--g50:#f7f8fa;--g100:#eef0f3;--g300:#d0d5dd;--g500:#6b7585;--g800:#2d3444;--bdr:#d4ddd8;--r:6px;--rl:10px;}
@@ -320,6 +321,56 @@ function buildDocElement(){
   foot.innerHTML=`<span>Expansão em POP - Infraestrutura — Net Turbo Telecom</span><span>Gerado em ${dateStr}</span>`;root.appendChild(foot);return root;
 }
 
+const SUPABASE_URL='https://awbehzomxcsbasgltlih.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3YmVoem9teGNzYmFzZ2x0bGloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODUyMjYsImV4cCI6MjA5NTU2MTIyNn0.9zuX49pdzjdehf8pyuRxYm1QPcqHgAWoKyVYXdohLDY';
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+const FOTOS_BUCKET='expansao-infraestrutura-fotos';
+
+function dataURLtoBlob(dataURL){
+  const arr=dataURL.split(',');
+  const mime=arr[0].match(/:(.*?);/)[1];
+  const bstr=atob(arr[1]);
+  let n=bstr.length;
+  const u8arr=new Uint8Array(n);
+  while(n--){u8arr[n]=bstr.charCodeAt(n);}
+  return new Blob([u8arr],{type:mime});
+}
+
+async function uploadGroupPhotos(group,prefixo){
+  const photos=groupPhotos[group]||[];
+  const urls=[];
+  for(let i=0;i<photos.length;i++){
+    const blob=dataURLtoBlob(photos[i].src);
+    const fileName=`${prefixo}_${Date.now()}_${i}.jpg`;
+    const{error}=await supabaseClient.storage.from(FOTOS_BUCKET).upload(fileName,blob,{contentType:'image/jpeg',upsert:true});
+    if(error)throw error;
+    const{data}=supabaseClient.storage.from(FOTOS_BUCKET).getPublicUrl(fileName);
+    urls.push(data.publicUrl);
+  }
+  return urls;
+}
+
+async function salvarNoSupabase(){
+  const v=id=>{const el=document.getElementById(id);return(el&&el.value.trim())?el.value.trim():null;};
+  const tipo=v('f-tipo');
+  const tipoFieldIds={Energia:'f-energia',Equipamento:'f-equip-tipo',DIO:'f-dio-capacidade','Periférico':'f-periferico'};
+  const campoId=tipoFieldIds[tipo];
+  const popSafe=(document.getElementById('f-pop').value||'POP').replace(/\s+/g,'_');
+  const fotos=await uploadGroupPhotos('insercao',popSafe);
+  const registro={
+    pop:v('f-pop'),
+    tecnico:v('f-tecnico'),
+    tipo:tipo,
+    item:campoId?v(campoId):null,
+    quantidade:v('f-quantidade'),
+    especificacao:v('f-especificacao'),
+    fotos:fotos.length?fotos:null
+  };
+  const{error}=await supabaseClient.from('expansao_infraestrutura').insert(registro);
+  if(error)throw error;
+}
+
 function waitForImages(el){const imgs=[...el.querySelectorAll('img')];if(!imgs.length)return Promise.resolve();return Promise.all(imgs.map(img=>{if(img.complete&&img.naturalWidth>0)return Promise.resolve();return new Promise(r=>{img.onload=r;img.onerror=r;});}));}
 
 async function doPDF(){
@@ -348,7 +399,13 @@ async function doPDF(){
     const fileName=`Expansao_Infraestrutura_${pop}_${dt}.pdf`;
     pdf.save(fileName);
     document.body.removeChild(el);
-    hideSpinner();showToast('✅ PDF gerado com sucesso!','success');
+    updateSpinner('Registrando na nuvem...');
+    try{
+      await salvarNoSupabase();
+      hideSpinner();showToast('✅ PDF gerado e registrado com sucesso!','success');
+    }catch(ue){
+      hideSpinner();showToast('⚠️ PDF gerado, mas houve erro ao registrar: '+ue.message,'warn');
+    }
   }catch(e){if(document.body.contains(el))document.body.removeChild(el);hideSpinner();alert('Erro ao gerar PDF: '+e.message);}
 }
 

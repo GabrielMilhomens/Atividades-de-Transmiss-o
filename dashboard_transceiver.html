@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard — Expansão em POP - Transceiver</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -54,6 +55,8 @@ td{padding:11px 14px;font-size:13px;border-bottom:1px solid var(--g100);vertical
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--g50)}
 .pop-badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:700;background:var(--gl);color:var(--gd);border:1px solid #c8dda8;white-space:nowrap}
+a.map-link{color:var(--gd);font-weight:700;text-decoration:none}
+a.map-link:hover{text-decoration:underline}
 .tipo-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;background:#e3f2fd;color:#1565c0;border:1px solid #90caf9}
 .empty,.spin-wrap{padding:48px;text-align:center;color:var(--g500)}
 .spinner{width:32px;height:32px;border:3px solid var(--g100);border-top-color:var(--gd);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
@@ -131,6 +134,7 @@ tr:hover td{background:var(--g50)}
             <th>Interface</th>
             <th>DIO</th>
             <th>Posição</th>
+            <th>Fotos</th>
           </tr>
         </thead>
         <tbody id="corpoTabela"></tbody>
@@ -143,7 +147,10 @@ tr:hover td{background:var(--g50)}
 </div>
 
 <script>
-  const MOCK_DATA = [{"data_hora": "2026-07-14T09:12:00", "pop": "SP-CAS-JBD", "tecnico": "Gabriel Souza", "tipo": "Cliente", "cliente": "Padaria Bom Pão", "etiqueta": "ETQ-4021", "equipamento": "AC-OLT-01", "tipo_interface": "GPON", "interface": "1/1/1", "dio": "24", "posicao": "Pos. 03", "data_hora_fmt": "2026-07-14T09:12:00"}, {"data_hora": "2026-07-14T08:40:00", "pop": "SP-JIU-CEN", "tecnico": "Marcos Lima", "tipo": "Backbone", "cliente": "—", "etiqueta": "—", "equipamento": "AC-AGG-02", "tipo_interface": "100G", "interface": "10GE 1/1/4", "dio": "144", "posicao": "Pos. 12", "data_hora_fmt": "2026-07-14T08:40:00"}, {"data_hora": "2026-07-13T17:05:00", "pop": "SP-CAS-SGB", "tecnico": "Gabriel Souza", "tipo": "Porta XGSPON", "cliente": "—", "etiqueta": "—", "equipamento": "AC-XGS-01", "tipo_interface": "XGSPON", "interface": "1/1/9", "dio": "72", "posicao": "Pos. 07", "data_hora_fmt": "2026-07-13T17:05:00"}, {"data_hora": "2026-07-13T14:22:00", "pop": "SP-VIN-APS", "tecnico": "Renata Alves", "tipo": "Cliente", "cliente": "Auto Peças Vinhedo", "etiqueta": "ETQ-3987", "equipamento": "AC-OLT-02", "tipo_interface": "GPON", "interface": "1/1/15", "dio": "12", "posicao": "Pos. 01", "data_hora_fmt": "2026-07-13T14:22:00"}, {"data_hora": "2026-07-12T11:50:00", "pop": "SP-ITA-BSE", "tecnico": "Marcos Lima", "tipo": "Porta GPON", "cliente": "—", "etiqueta": "—", "equipamento": "AC-DM4-03", "tipo_interface": "GPON", "interface": "1/1/22", "dio": "24", "posicao": "Pos. 18", "data_hora_fmt": "2026-07-12T11:50:00"}, {"data_hora": "2026-07-12T10:15:00", "pop": "SP-CAS-JBD", "tecnico": "Renata Alves", "tipo": "Backbone", "cliente": "—", "etiqueta": "—", "equipamento": "M-AGG-01", "tipo_interface": "40G", "interface": "10GE 1/1/2", "dio": "144", "posicao": "Pos. 05", "data_hora_fmt": "2026-07-12T10:15:00"}, {"data_hora": "2026-07-11T16:30:00", "pop": "SP-HOT-HTC", "tecnico": "Gabriel Souza", "tipo": "Cliente", "cliente": "Mercado Central", "etiqueta": "ETQ-3922", "equipamento": "AC-OLT-01", "tipo_interface": "GPON", "interface": "1/1/6", "dio": "72", "posicao": "Pos. 09", "data_hora_fmt": "2026-07-11T16:30:00"}];
+  const SUPABASE_URL = 'https://awbehzomxcsbasgltlih.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3YmVoem9teGNzYmFzZ2x0bGloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODUyMjYsImV4cCI6MjA5NTU2MTIyNn0.9zuX49pdzjdehf8pyuRxYm1QPcqHgAWoKyVYXdohLDY';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const TABLE_NAME = 'expansao_transceiver';
 
   let registrosAtuais = [];
   let registrosFiltrados = [];
@@ -153,13 +160,24 @@ tr:hover td{background:var(--g50)}
     document.getElementById('emptyMsg').style.display = 'none';
     document.getElementById('corpoTabela').innerHTML = '';
 
-    setTimeout(() => {
-      registrosAtuais = MOCK_DATA.slice();
-      document.getElementById('loadingMsg').style.display = 'none';
-      popularFiltros();
-      aplicarFiltro();
-      atualizarStats();
-    }, 300);
+    supabaseClient
+      .from(TABLE_NAME)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        document.getElementById('loadingMsg').style.display = 'none';
+        if (error) {
+          console.error(error);
+          document.getElementById('emptyMsg').textContent = 'Erro ao carregar os dados: ' + error.message;
+          document.getElementById('emptyMsg').style.display = 'block';
+          registrosAtuais = [];
+        } else {
+          registrosAtuais = (data || []).map(r => ({ ...r, data_hora: r.created_at, data_hora_fmt: r.created_at }));
+        }
+        popularFiltros();
+        aplicarFiltro();
+        atualizarStats();
+      });
   }
 
   function popularFiltros() {
@@ -214,7 +232,7 @@ tr:hover td{background:var(--g50)}
     registrosFiltrados.forEach(r => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${escapeHtml(r.data_hora_fmt)}</td>
+        <td>${fmtDT(r.data_hora_fmt)}</td>
         <td>${`<span class="pop-badge">${escapeHtml(r.pop)}</span>`}</td>
         <td>${escapeHtml(r.tecnico)}</td>
         <td>${`<span class="tipo-badge">${escapeHtml(r.tipo)}</span>`}</td>
@@ -224,6 +242,7 @@ tr:hover td{background:var(--g50)}
         <td>${escapeHtml(r.interface)}</td>
         <td>${escapeHtml(r.dio)}</td>
         <td>${escapeHtml(r.posicao)}</td>
+        <td>${fotosLink(r.fotos_equipamento, r.fotos_dio)}</td>
       `;
       corpo.appendChild(tr);
     });
@@ -245,6 +264,22 @@ tr:hover td{background:var(--g50)}
     document.getElementById('statHoje').textContent = enviadosHoje;
   }
 
+  function fotosLink(fotosEquipamento, fotosDio) {
+    const eq = Array.isArray(fotosEquipamento) ? fotosEquipamento : [];
+    const dio = Array.isArray(fotosDio) ? fotosDio : [];
+    const total = eq.length + dio.length;
+    if (!total) return '—';
+    const links = [...eq, ...dio].map(u => `<a href="${escapeAttr(u)}" target="_blank" class="map-link">ver</a>`).join(', ');
+    return `📷 ${total} — ${links}`;
+  }
+
+  function fmtDT(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d)) return String(iso);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  }
+
   function escapeHtml(str) {
     if (!str) return '';
     const div = document.createElement('div');
@@ -262,7 +297,7 @@ tr:hover td{background:var(--g50)}
       alert('Não há registros para exportar.');
       return;
     }
-    const dados = registrosFiltrados.map(r => ({ 'Data/Hora': r.data_hora_fmt || '', 'POP': r.pop || '', 'Técnico': r.tecnico || '', 'Tipo': r.tipo || '', 'Cliente': r.cliente || '', 'Etiqueta': r.etiqueta || '', 'Equipamento': r.equipamento || '', 'Tipo Interface': r.tipo_interface || '', 'Interface': r.interface || '', 'DIO': r.dio || '', 'Posição': r.posicao || '' }));
+    const dados = registrosFiltrados.map(r => ({ 'Data/Hora': fmtDT(r.data_hora_fmt), 'POP': r.pop || '', 'Técnico': r.tecnico || '', 'Tipo': r.tipo || '', 'Cliente': r.cliente || '', 'Etiqueta': r.etiqueta || '', 'Equipamento': r.equipamento || '', 'Tipo Interface': r.tipo_interface || '', 'Interface': r.interface || '', 'DIO': r.dio || '', 'Posição': r.posicao || '' }));
     const ws = XLSX.utils.json_to_sheet(dados);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Registros');
