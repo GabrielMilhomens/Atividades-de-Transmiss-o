@@ -199,21 +199,21 @@ tr:hover td{background:var(--g50)}
 
   function popularFiltros() {
   {
-    const vals = [...new Set(MOCK_DATA.map(r => (r.tipo || '').trim()).filter(Boolean))].sort();
+    const vals = [...new Set(registrosAtuais.map(r => (r.tipo || '').trim()).filter(Boolean))].sort();
     const sel = document.getElementById('filtro_tipo');
     const cur = sel.value;
     sel.innerHTML = '<option value="">Todas</option>' + vals.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join('');
     sel.value = cur;
   }
   {
-    const vals = [...new Set(MOCK_DATA.map(r => (r.pop || '').trim()).filter(Boolean))].sort();
+    const vals = [...new Set(registrosAtuais.map(r => (r.pop || '').trim()).filter(Boolean))].sort();
     const sel = document.getElementById('filtro_pop');
     const cur = sel.value;
     sel.innerHTML = '<option value="">Todas</option>' + vals.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join('');
     sel.value = cur;
   }
   {
-    const vals = [...new Set(MOCK_DATA.map(r => (r.tecnico || '').trim()).filter(Boolean))].sort();
+    const vals = [...new Set(registrosAtuais.map(r => (r.tecnico || '').trim()).filter(Boolean))].sort();
     const sel = document.getElementById('filtro_tecnico');
     const cur = sel.value;
     sel.innerHTML = '<option value="">Todas</option>' + vals.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join('');
