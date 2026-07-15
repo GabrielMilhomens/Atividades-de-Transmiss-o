@@ -141,7 +141,14 @@ textarea{resize:vertical;min-height:60px}
             <div class="combo-list" id="combo-pop-list" role="listbox"></div>
           </div>
         </div>
-        <div class="fld"><label>Técnico Responsável <span class="req">*</span></label><input type="text" id="f-tecnico" placeholder="Nome completo"></div>
+        <div class="fld"><label>Técnico Responsável <span class="req">*</span></label><select id="f-tecnico">
+            <option value="">Selecione o técnico</option>
+            <option>Diego Rodrigues</option>
+            <option>Filipi Labella</option>
+            <option>Gabriel Perfeito</option>
+            <option>Marcos Joaquim</option>
+            <option>Paulo Lopes</option>
+          </select></div>
         <div class="fld"><label>Data da Preventiva</label><input type="date" id="f-data"></div>
       </div>
       <div class="nav-buttons"><div></div><button class="btn btnp btn-lg" onclick="goStep(2)">Próxima Sessão &#8594;</button></div>
