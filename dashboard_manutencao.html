@@ -31,7 +31,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
 .stat-card.s-tipos{border-top-color:var(--at2)}
 .stat-card.s-mtta{border-top-color:#1565c0}
 .stat-card.s-mttr{border-top-color:#5e35b1}
-.stat-card.s-mtbf{border-top-color:#e07b00}
 .stat-card .lbl{font-size:10px;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
 .stat-card .val{font-size:26px;font-weight:700;color:var(--g800)}
 
@@ -96,7 +95,6 @@ tr:hover td{background:var(--g50)}
     <div class="stat-card s-tipos"><div class="lbl">Tipos distintos</div><div class="val" id="statTipos">—</div></div>
     <div class="stat-card s-mtta"><div class="lbl">MTTA Médio</div><div class="val" id="statMtta">—</div></div>
     <div class="stat-card s-mttr"><div class="lbl">MTTR Médio</div><div class="val" id="statMttr">—</div></div>
-    <div class="stat-card s-mtbf"><div class="lbl">MTBF Médio (dias)</div><div class="val" id="statMtbf">—</div></div>
     
   </div>
 
@@ -303,35 +301,6 @@ tr:hover td{background:var(--g50)}
     const media = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
     document.getElementById('statMtta').textContent = fmtDuracao(media(mttaVals));
     document.getElementById('statMttr').textContent = fmtDuracao(media(mttrVals));
-    atualizarMtbf();
-  }
-
-  function atualizarMtbf() {
-    const porPop = {};
-    registrosFiltrados.forEach(r => {
-      const pop = (r.pop || '').trim();
-      const dataRef = r.data_hora || r.abertura;
-      if (!pop || !dataRef) return;
-      const d = new Date(dataRef);
-      if (isNaN(d)) return;
-      if (!porPop[pop]) porPop[pop] = [];
-      porPop[pop].push(d);
-    });
-    const intervalosDias = [];
-    Object.values(porPop).forEach(datas => {
-      if (datas.length < 2) return;
-      datas.sort((a, b) => a - b);
-      for (let i = 1; i < datas.length; i++) {
-        const diffDias = (datas[i] - datas[i - 1]) / 86400000;
-        intervalosDias.push(diffDias);
-      }
-    });
-    if (!intervalosDias.length) {
-      document.getElementById('statMtbf').textContent = '—';
-      return;
-    }
-    const media = intervalosDias.reduce((a, b) => a + b, 0) / intervalosDias.length;
-    document.getElementById('statMtbf').textContent = media.toFixed(1) + 'd';
   }
 
   function calcMinutos(inicio, fim) {
