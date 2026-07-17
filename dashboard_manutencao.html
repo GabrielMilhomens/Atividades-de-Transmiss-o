@@ -29,7 +29,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
 .stat-card.s-total{border-top-color:var(--gd)}
 .stat-card.s-pops{border-top-color:#1565c0}
 .stat-card.s-tipos{border-top-color:var(--at2)}
-.stat-card.s-hoje{border-top-color:var(--al)}
 .stat-card.s-mtta{border-top-color:#1565c0}
 .stat-card.s-mttr{border-top-color:#5e35b1}
 .stat-card.s-mtbf{border-top-color:#e07b00}
@@ -95,7 +94,6 @@ tr:hover td{background:var(--g50)}
     <div class="stat-card s-total"><div class="lbl">Registros</div><div class="val" id="statTotal">—</div></div>
     <div class="stat-card s-pops"><div class="lbl">POPs distintos</div><div class="val" id="statPops">—</div></div>
     <div class="stat-card s-tipos"><div class="lbl">Tipos distintos</div><div class="val" id="statTipos">—</div></div>
-    <div class="stat-card s-hoje"><div class="lbl">Enviados hoje</div><div class="val" id="statHoje">—</div></div>
     <div class="stat-card s-mtta"><div class="lbl">MTTA Médio</div><div class="val" id="statMtta">—</div></div>
     <div class="stat-card s-mttr"><div class="lbl">MTTR Médio</div><div class="val" id="statMttr">—</div></div>
     <div class="stat-card s-mtbf"><div class="lbl">MTBF Médio (dias)</div><div class="val" id="statMtbf">—</div></div>
@@ -108,6 +106,14 @@ tr:hover td{background:var(--g50)}
       <input type="text" id="filtroTexto" placeholder="Buscar em qualquer campo..." oninput="aplicarFiltro()">
     </div>
     <div class="fld" style="max-width:200px">
+      <label>Data de</label>
+      <input type="date" id="filtro_data_de" onchange="aplicarFiltro()">
+    </div>
+    <div class="fld" style="max-width:200px">
+      <label>Data até</label>
+      <input type="date" id="filtro_data_ate" onchange="aplicarFiltro()">
+    </div>
+    <div class="fld" style="max-width:200px">
       <label>POP</label>
       <select id="filtro_pop" onchange="aplicarFiltro()">
         <option value="">Todas</option>
@@ -116,6 +122,12 @@ tr:hover td{background:var(--g50)}
     <div class="fld" style="max-width:200px">
       <label>Tipo</label>
       <select id="filtro_tipo" onchange="aplicarFiltro()">
+        <option value="">Todas</option>
+      </select>
+    </div>
+    <div class="fld" style="max-width:200px">
+      <label>Técnico</label>
+      <select id="filtro_tecnico" onchange="aplicarFiltro()">
         <option value="">Todas</option>
       </select>
     </div>
@@ -203,16 +215,32 @@ tr:hover td{background:var(--g50)}
     sel.innerHTML = '<option value="">Todas</option>' + vals.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join('');
     sel.value = cur;
   }
+  {
+    const vals = [...new Set(registrosAtuais.map(r => (r.tecnico || '').trim()).filter(Boolean))].sort();
+    const sel = document.getElementById('filtro_tecnico');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Todas</option>' + vals.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join('');
+    sel.value = cur;
+  }
   }
 
   function aplicarFiltro() {
     const termo = document.getElementById('filtroTexto').value.trim().toLowerCase();
     const sel_pop = document.getElementById('filtro_pop').value;
       const sel_tipo = document.getElementById('filtro_tipo').value;
+    const sel_tecnico = document.getElementById('filtro_tecnico').value;
+    const dataDe = document.getElementById('filtro_data_de').value;
+    const dataAte = document.getElementById('filtro_data_ate').value;
 
     registrosFiltrados = registrosAtuais.filter(r => {
       if (sel_pop && (r.pop || '').trim() !== sel_pop) return false;
       if (sel_tipo && (r.tipo || '').trim() !== sel_tipo) return false;
+      if (sel_tecnico && (r.tecnico || '').trim() !== sel_tecnico) return false;
+      if (dataDe || dataAte) {
+        const dataRegistro = (r.data_hora || '').slice(0, 10);
+        if (dataDe && dataRegistro < dataDe) return false;
+        if (dataAte && dataRegistro > dataAte) return false;
+      }
       if (termo) {
         const bate = Object.values(r).some(v => (String(v) || '').toLowerCase().includes(termo));
         if (!bate) return false;
@@ -266,11 +294,6 @@ tr:hover td{background:var(--g50)}
     const tiposUnicos = new Set(registrosAtuais.map(r => (r.tipo || '').trim()).filter(Boolean));
     document.getElementById('statTipos').textContent = tiposUnicos.size;
 
-    const hoje = new Date().toDateString();
-    const enviadosHoje = registrosAtuais.filter(r =>
-      r.data_hora && new Date(r.data_hora).toDateString() === hoje
-    ).length;
-    document.getElementById('statHoje').textContent = enviadosHoje;
     atualizarMttaMttr();
   }
 
