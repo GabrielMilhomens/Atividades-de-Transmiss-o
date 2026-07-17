@@ -26,10 +26,10 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
 
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:22px}
 .stat-card{background:#fff;border-radius:10px;padding:14px 18px;border:1px solid var(--bdr);box-shadow:0 2px 8px rgba(26,92,55,.07);border-top:4px solid var(--g300)}
-.stat-card.s-total{border-top-color:var(--gd)}
-.stat-card.s-pops{border-top-color:#1565c0}
-.stat-card.s-tipos{border-top-color:var(--at2)}
-.stat-card.s-hoje{border-top-color:var(--al)}
+.stat-card.s-manutencao{border-top-color:#e07b00}
+.stat-card.s-preventiva{border-top-color:var(--gd)}
+.stat-card.s-transceiver{border-top-color:#1565c0}
+.stat-card.s-infra{border-top-color:#5e35b1}
 .stat-card .lbl{font-size:10px;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
 .stat-card .val{font-size:26px;font-weight:700;color:var(--g800)}
 
@@ -93,10 +93,10 @@ tr:hover td{background:var(--g50)}
 <div class="wrap" id="dash-wrap">
 
   <div class="stats" id="stats-bar">
-    <div class="stat-card s-total"><div class="lbl">Registros</div><div class="val" id="statTotal">—</div></div>
-    <div class="stat-card s-pops"><div class="lbl">POPs distintos</div><div class="val" id="statPops">—</div></div>
-    <div class="stat-card s-tipos"><div class="lbl">Técnicos distintos</div><div class="val" id="statTipos">—</div></div>
-    <div class="stat-card s-hoje"><div class="lbl">Enviados hoje</div><div class="val" id="statHoje">—</div></div>
+    <div class="stat-card s-manutencao"><div class="lbl">Manutenção</div><div class="val" id="statManutencao">—</div></div>
+    <div class="stat-card s-preventiva"><div class="lbl">Preventiva</div><div class="val" id="statPreventiva">—</div></div>
+    <div class="stat-card s-transceiver"><div class="lbl">Expansão Transceiver</div><div class="val" id="statTransceiver">—</div></div>
+    <div class="stat-card s-infra"><div class="lbl">Expansão Infraestrutura</div><div class="val" id="statInfra">—</div></div>
     
   </div>
 
@@ -249,6 +249,7 @@ tr:hover td{background:var(--g50)}
       return true;
     });
     renderTabela();
+    atualizarStats();
   }
 
   function renderTabela() {
@@ -279,19 +280,11 @@ tr:hover td{background:var(--g50)}
   }
 
   function atualizarStats() {
-    document.getElementById('statTotal').textContent = registrosAtuais.length;
-
-    const popsUnicos = new Set(registrosAtuais.map(r => (r.pop || '').trim()).filter(Boolean));
-    document.getElementById('statPops').textContent = popsUnicos.size;
-
-    const tiposUnicos = new Set(registrosAtuais.map(r => (r.tecnico || '').trim()).filter(Boolean));
-    document.getElementById('statTipos').textContent = tiposUnicos.size;
-
-    const hoje = new Date().toDateString();
-    const enviadosHoje = registrosAtuais.filter(r =>
-      r.data_hora && new Date(r.data_hora).toDateString() === hoje
-    ).length;
-    document.getElementById('statHoje').textContent = enviadosHoje;
+    const contar = tipo => registrosFiltrados.filter(r => (r.tipo || '').trim() === tipo).length;
+    document.getElementById('statManutencao').textContent = contar('Manutenção');
+    document.getElementById('statPreventiva').textContent = contar('Preventiva');
+    document.getElementById('statTransceiver').textContent = contar('Expansão Transceiver');
+    document.getElementById('statInfra').textContent = contar('Expansão Infraestrutura');
   }
 
   function tipoBadge(tipo) {
