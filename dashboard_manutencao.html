@@ -30,6 +30,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
 .stat-card.s-pops{border-top-color:#1565c0}
 .stat-card.s-tipos{border-top-color:var(--at2)}
 .stat-card.s-hoje{border-top-color:var(--al)}
+.stat-card.s-mtta{border-top-color:#1565c0}
+.stat-card.s-mttr{border-top-color:#5e35b1}
 .stat-card .lbl{font-size:10px;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
 .stat-card .val{font-size:26px;font-weight:700;color:var(--g800)}
 
@@ -93,6 +95,8 @@ tr:hover td{background:var(--g50)}
     <div class="stat-card s-pops"><div class="lbl">POPs distintos</div><div class="val" id="statPops">—</div></div>
     <div class="stat-card s-tipos"><div class="lbl">Tipos distintos</div><div class="val" id="statTipos">—</div></div>
     <div class="stat-card s-hoje"><div class="lbl">Enviados hoje</div><div class="val" id="statHoje">—</div></div>
+    <div class="stat-card s-mtta"><div class="lbl">MTTA Médio</div><div class="val" id="statMtta">—</div></div>
+    <div class="stat-card s-mttr"><div class="lbl">MTTR Médio</div><div class="val" id="statMttr">—</div></div>
     
   </div>
 
@@ -135,6 +139,8 @@ tr:hover td{background:var(--g50)}
             <th>Abertura</th>
             <th>Chegada</th>
             <th>Validação</th>
+            <th>MTTA</th>
+            <th>MTTR</th>
           </tr>
         </thead>
         <tbody id="corpoTabela"></tbody>
@@ -212,6 +218,7 @@ tr:hover td{background:var(--g50)}
       return true;
     });
     renderTabela();
+    atualizarMttaMttr();
   }
 
   function renderTabela() {
@@ -241,6 +248,8 @@ tr:hover td{background:var(--g50)}
         <td>${fmtDT(r.abertura)}</td>
         <td>${fmtDT(r.chegada)}</td>
         <td>${fmtDT(r.validacao)}</td>
+        <td>${fmtDuracao(calcMinutos(r.abertura, r.chegada))}</td>
+        <td>${fmtDuracao(calcMinutos(r.abertura, r.validacao))}</td>
       `;
       corpo.appendChild(tr);
     });
@@ -260,9 +269,35 @@ tr:hover td{background:var(--g50)}
       r.data_hora && new Date(r.data_hora).toDateString() === hoje
     ).length;
     document.getElementById('statHoje').textContent = enviadosHoje;
+    atualizarMttaMttr();
   }
 
-  function fmtDT(iso) {
+  function atualizarMttaMttr() {
+    const mttaVals = registrosFiltrados.map(r => calcMinutos(r.abertura, r.chegada)).filter(v => v !== null);
+    const mttrVals = registrosFiltrados.map(r => calcMinutos(r.abertura, r.validacao)).filter(v => v !== null);
+    const media = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+    document.getElementById('statMtta').textContent = fmtDuracao(media(mttaVals));
+    document.getElementById('statMttr').textContent = fmtDuracao(media(mttrVals));
+  }
+
+  function calcMinutos(inicio, fim) {
+  if (!inicio || !fim) return null;
+  const d1 = new Date(inicio);
+  const d2 = new Date(fim);
+  if (isNaN(d1) || isNaN(d2)) return null;
+  const diffMin = (d2 - d1) / 60000;
+  return diffMin >= 0 ? diffMin : null;
+}
+
+function fmtDuracao(min) {
+  if (min === null || min === undefined) return '—';
+  const totalMin = Math.round(min);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}h ${String(m).padStart(2, '0')}min`;
+}
+
+function fmtDT(iso) {
     if (!iso) return '—';
     const d = new Date(iso);
     if (isNaN(d)) return String(iso);
@@ -286,7 +321,7 @@ tr:hover td{background:var(--g50)}
       alert('Não há registros para exportar.');
       return;
     }
-    const dados = registrosFiltrados.map(r => ({ 'Data/Hora': fmtDT(r.data_hora_fmt), 'POP': r.pop || '', 'Técnico': r.tecnico || '', 'Tipo': r.tipo || '', 'Item': r.item || '', 'Item Defeituoso': r.item_defeituoso || '', 'Observações': r.observacoes || '', 'Abertura': fmtDT(r.abertura), 'Chegada': fmtDT(r.chegada), 'Validação': fmtDT(r.validacao) }));
+    const dados = registrosFiltrados.map(r => ({ 'Data/Hora': fmtDT(r.data_hora_fmt), 'POP': r.pop || '', 'Técnico': r.tecnico || '', 'Tipo': r.tipo || '', 'Item': r.item || '', 'Item Defeituoso': r.item_defeituoso || '', 'Observações': r.observacoes || '', 'Abertura': fmtDT(r.abertura), 'Chegada': fmtDT(r.chegada), 'Validação': fmtDT(r.validacao), 'MTTA': fmtDuracao(calcMinutos(r.abertura, r.chegada)), 'MTTR': fmtDuracao(calcMinutos(r.abertura, r.validacao)) }));
     const ws = XLSX.utils.json_to_sheet(dados);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Registros');
