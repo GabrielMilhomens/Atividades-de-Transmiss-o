@@ -352,10 +352,10 @@ function fmtDT(iso) {
   }
 
 function celulaConferencia(r){
-  const badge = r.conferido
-    ? '<span class="conf-badge ok">&#10003; Conferido</span>'
-    : '<span class="conf-badge pendente">Pendente</span>';
-  return `<div class="conf-cell">${badge}<button class="btn-editar-horarios" onclick="abrirEdicaoHorarios('${r.id}')">&#9998; Editar horários</button></div>`;
+  if(r.conferido){
+    return `<div class="conf-cell"><span class="conf-badge ok">&#10003; Validado</span></div>`;
+  }
+  return `<div class="conf-cell"><span class="conf-badge pendente">Pendente</span><button class="btn-editar-horarios" onclick="abrirEdicaoHorarios('${r.id}')">&#9998; Editar horários</button></div>`;
 }
 
 function isoParaDatetimeLocal(iso){
@@ -452,7 +452,7 @@ document.getElementById('edit-hor-bg').addEventListener('click', e => { if(e.tar
       </div>
       <label class="edit-hor-check">
         <input type="checkbox" id="eh-conferido">
-        Marcar horários como conferidos
+        Marcar horários como validados (não será mais possível editar)
       </label>
     </div>
     <div class="edit-hor-actions">
