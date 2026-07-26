@@ -34,6 +34,28 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
 .stat-card .lbl{font-size:10px;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
 .stat-card .val{font-size:26px;font-weight:700;color:var(--g800)}
 
+.conf-cell{display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+.conf-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:12px;font-size:10.5px;font-weight:700;white-space:nowrap}
+.conf-badge.ok{background:#f0fae0;color:#5a8a1a;border:1px solid #c8dda8}
+.conf-badge.pendente{background:#fff8e1;color:#b36200;border:1px solid #ffe082}
+.btn-editar-horarios{padding:4px 10px;background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;border-radius:5px;font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-editar-horarios:hover{background:#1565c0;color:#fff}
+
+.edit-hor-bg{display:none;position:fixed;inset:0;background:rgba(20,30,20,.5);z-index:2500;align-items:center;justify-content:center;padding:16px}
+.edit-hor-bg.show{display:flex}
+.edit-hor-modal{background:#fff;border-radius:14px;max-width:440px;width:100%;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.edit-hor-hd{background:var(--gd);padding:16px 20px;color:#fff}
+.edit-hor-hd h3{font-size:15px;font-weight:700}
+.edit-hor-hd p{font-size:11.5px;color:rgba(255,255,255,.85);margin-top:2px}
+.edit-hor-body{padding:20px}
+.edit-hor-fld{margin-bottom:14px}
+.edit-hor-fld label{display:block;font-size:10px;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.edit-hor-fld input[type="datetime-local"]{width:100%;padding:9px 11px;border:1px solid var(--bdr);border-radius:6px;font-size:13.5px;font-family:inherit}
+.edit-hor-fld input:focus{outline:none;border-color:var(--gd);box-shadow:0 0 0 3px rgba(140,191,63,.15)}
+.edit-hor-check{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--g800);cursor:pointer;margin-top:6px}
+.edit-hor-check input{width:auto;accent-color:var(--gd)}
+.edit-hor-actions{display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--bdr)}
+
 .filter-bar{background:#fff;border-radius:10px;padding:16px 20px;border:1px solid var(--bdr);margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
 .fld{display:flex;flex-direction:column;gap:4px;flex:1;min-width:160px}
 .fld label{font-size:10px;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.5px}
@@ -153,6 +175,7 @@ tr:hover td{background:var(--g50)}
             <th>Validação</th>
             <th>MTTA</th>
             <th>MTTR</th>
+            <th>Conferência</th>
           </tr>
         </thead>
         <tbody id="corpoTabela"></tbody>
@@ -278,6 +301,7 @@ tr:hover td{background:var(--g50)}
         <td>${fmtDT(r.validacao)}</td>
         <td>${fmtDuracao(calcMinutos(r.abertura, r.chegada))}</td>
         <td>${fmtDuracao(calcMinutos(r.abertura, r.validacao))}</td>
+        <td>${celulaConferencia(r)}</td>
       `;
       corpo.appendChild(tr);
     });
@@ -327,6 +351,58 @@ function fmtDT(iso) {
     return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
   }
 
+function celulaConferencia(r){
+  const badge = r.conferido
+    ? '<span class="conf-badge ok">&#10003; Conferido</span>'
+    : '<span class="conf-badge pendente">Pendente</span>';
+  return `<div class="conf-cell">${badge}<button class="btn-editar-horarios" onclick="abrirEdicaoHorarios('${r.id}')">&#9998; Editar horários</button></div>`;
+}
+
+function isoParaDatetimeLocal(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d)) return '';
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+let horariosEditandoId = null;
+
+function abrirEdicaoHorarios(id){
+  const r = registrosAtuais.find(x => x.id === id);
+  if(!r) return;
+  horariosEditandoId = id;
+  document.getElementById('edit-hor-sub').textContent = `${r.pop || '—'} · ${r.tecnico || '—'}`;
+  document.getElementById('eh-abertura').value = isoParaDatetimeLocal(r.abertura);
+  document.getElementById('eh-chegada').value = isoParaDatetimeLocal(r.chegada);
+  document.getElementById('eh-validacao').value = isoParaDatetimeLocal(r.validacao);
+  document.getElementById('eh-conferido').checked = !!r.conferido;
+  document.getElementById('edit-hor-bg').classList.add('show');
+}
+function fecharEdicaoHorarios(){
+  document.getElementById('edit-hor-bg').classList.remove('show');
+  horariosEditandoId = null;
+}
+async function salvarEdicaoHorarios(){
+  if(!horariosEditandoId) return;
+  const toISO = val => val ? new Date(val).toISOString() : null;
+  const atualizacao = {
+    abertura: toISO(document.getElementById('eh-abertura').value),
+    chegada: toISO(document.getElementById('eh-chegada').value),
+    validacao: toISO(document.getElementById('eh-validacao').value),
+    conferido: document.getElementById('eh-conferido').checked,
+  };
+  try{
+    const { error } = await supabaseClient.from(TABLE_NAME).update(atualizacao).eq('id', horariosEditandoId);
+    if(error) throw error;
+    fecharEdicaoHorarios();
+    await carregarDados();
+  }catch(e){
+    alert('Erro ao salvar horários: ' + e.message);
+  }
+}
+document.getElementById('edit-hor-bg').addEventListener('click', e => { if(e.target === e.currentTarget) fecharEdicaoHorarios(); });
+
   function escapeHtml(str) {
     if (!str) return '';
     const div = document.createElement('div');
@@ -354,6 +430,37 @@ function fmtDT(iso) {
 
   carregarDados();
 </script>
+
+<div class="edit-hor-bg" id="edit-hor-bg">
+  <div class="edit-hor-modal">
+    <div class="edit-hor-hd">
+      <h3>Editar Horários</h3>
+      <p id="edit-hor-sub">—</p>
+    </div>
+    <div class="edit-hor-body">
+      <div class="edit-hor-fld">
+        <label>Abertura do Chamado</label>
+        <input type="datetime-local" id="eh-abertura">
+      </div>
+      <div class="edit-hor-fld">
+        <label>Chegada ao POP</label>
+        <input type="datetime-local" id="eh-chegada">
+      </div>
+      <div class="edit-hor-fld">
+        <label>Validação</label>
+        <input type="datetime-local" id="eh-validacao">
+      </div>
+      <label class="edit-hor-check">
+        <input type="checkbox" id="eh-conferido">
+        Marcar horários como conferidos
+      </label>
+    </div>
+    <div class="edit-hor-actions">
+      <button class="btn btn-ghost" onclick="fecharEdicaoHorarios()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicaoHorarios()">Salvar</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
