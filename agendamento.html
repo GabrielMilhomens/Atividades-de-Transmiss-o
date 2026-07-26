@@ -67,10 +67,18 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
 .side-card{background:#fff;border-radius:12px;border:1px solid var(--bdr);padding:18px;box-shadow:0 2px 8px rgba(26,92,55,.07);margin-bottom:16px}
 .side-card h3{font-size:12px;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
 .legend-item{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer;user-select:none}
-.cat-chips{display:flex;gap:8px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--bdr);overflow-x:auto}
-.cat-chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px 6px 6px;border-radius:20px;background:var(--g50);border:1px solid var(--bdr);font-size:12px;font-weight:700;color:var(--g800);cursor:pointer;white-space:nowrap;transition:opacity .1s}
-.cat-chip.off{opacity:.4}
-.cat-chip .sq{width:22px;height:22px;border-radius:7px;flex-shrink:0}
+.busca-wrap{position:relative;flex:1;min-width:160px;max-width:280px}
+.busca-input{width:100%;padding:9px 14px;border:1px solid var(--bdr);border-radius:8px;font-size:13px;font-family:inherit;outline:none;color:var(--g800)}
+.busca-input:focus{border-color:var(--gd);box-shadow:0 0 0 3px rgba(140,191,63,.15)}
+.busca-resultados{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid var(--bdr);border-radius:10px;box-shadow:0 8px 26px rgba(0,0,0,.15);max-height:320px;overflow-y:auto;z-index:50}
+.busca-resultados.show{display:block}
+.busca-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--g100);font-size:13px}
+.busca-item:last-child{border-bottom:none}
+.busca-item:hover{background:var(--g50)}
+.busca-item .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.busca-item .titulo{flex:1;font-weight:600;color:var(--g800);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.busca-item .data{font-size:11px;color:var(--g500);flex-shrink:0}
+.busca-empty{padding:14px;text-align:center;font-size:12.5px;color:var(--g500)}
 .legend-dot{width:11px;height:11px;border-radius:3px;flex-shrink:0}
 .legend-item.off{opacity:.35}
 .upcoming-item{padding:10px 0;border-bottom:1px solid var(--g100);font-size:12.5px}
@@ -231,9 +239,12 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
         <button onclick="mudarMes(1)">&#8250;</button>
         <button class="btn-hoje" onclick="irHoje()" style="width:auto;padding:0 12px">Hoje</button>
       </div>
+      <div class="busca-wrap">
+        <input type="text" id="busca-input" class="busca-input" placeholder="Buscar evento..." oninput="onBuscaInput()" onfocus="onBuscaInput()">
+        <div class="busca-resultados" id="busca-resultados"></div>
+      </div>
       <button class="btn-novo" onclick="abrirModal(fmtISO(new Date()))">&#43; Novo Evento</button>
     </div>
-    <div class="cat-chips" id="legend"></div>
     <div class="cal-grid" id="cal-dow"></div>
     <div class="cal-body" id="cal-grid"></div>
   </div>
@@ -591,19 +602,6 @@ function renderGrid(){
   document.getElementById('cal-grid').innerHTML = html;
 }
 
-/* ══════ RENDER: CHIPS DE CATEGORIA ══════ */
-function renderLegend(){
-  document.getElementById('legend').innerHTML = CATEGORIAS.map(c => `
-    <div class="cat-chip ${categoriasAtivas.has(c.id)?'':'off'}" onclick="toggleCategoria('${c.id}')">
-      <span class="sq" style="background:${c.hex}"></span>
-      <span>${esc(c.label)}</span>
-    </div>`).join('');
-}
-function toggleCategoria(id){
-  if(categoriasAtivas.has(id)) categoriasAtivas.delete(id); else categoriasAtivas.add(id);
-  renderLegend(); renderGrid(); renderUpcoming();
-}
-
 /* ══════ RENDER: PRÓXIMOS EVENTOS ══════ */
 function renderUpcoming(){
   const hoje = hojeISO();
@@ -637,6 +635,70 @@ function irHoje(){
   dataAtual = new Date();
   renderGrid();
 }
+
+/* ══════ BUSCA DE EVENTOS ══════ */
+function onBuscaInput(){
+  const termo = document.getElementById('busca-input').value.trim().toLowerCase();
+  const box = document.getElementById('busca-resultados');
+  if(!termo){
+    box.classList.remove('show');
+    box.innerHTML = '';
+    return;
+  }
+  const resultados = EVENTOS
+    .filter(e => e.titulo.toLowerCase().includes(termo))
+    .sort((a,b)=> a.data.localeCompare(b.data))
+    .slice(0, 20);
+
+  if(!resultados.length){
+    box.innerHTML = '<div class="busca-empty">Nenhum evento encontrado.</div>';
+  } else {
+    box.innerHTML = resultados.map(e => {
+      const cat = catInfo(e.categoria);
+      const d = new Date(e.data+'T12:00:00');
+      const dataFmt = d.toLocaleDateString('pt-BR', {day:'2-digit', month:'short'});
+      return `<div class="busca-item" onclick="selecionarResultadoBusca('${e.id}')">
+        <span class="dot" style="background:${corEvento(e)}"></span>
+        <span class="titulo">${esc(e.titulo)}</span>
+        <span class="data">${dataFmt}</span>
+      </div>`;
+    }).join('');
+  }
+  box.classList.add('show');
+}
+function selecionarResultadoBusca(id){
+  document.getElementById('busca-resultados').classList.remove('show');
+  document.getElementById('busca-input').value = '';
+  abrirDetalhe(id);
+}
+document.addEventListener('click', e => {
+  const wrap = document.querySelector('.busca-wrap');
+  if(wrap && !wrap.contains(e.target)){
+    document.getElementById('busca-resultados').classList.remove('show');
+  }
+});
+
+/* ══════ SWIPE (MOBILE) PARA TROCAR DE MÊS ══════ */
+(function initSwipe(){
+  const alvo = document.getElementById('cal-grid');
+  let startX = 0, startY = 0, tocando = false;
+  alvo.addEventListener('touchstart', e => {
+    if(e.touches.length !== 1) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    tocando = true;
+  }, {passive:true});
+  alvo.addEventListener('touchend', e => {
+    if(!tocando) return;
+    tocando = false;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    const LIMIAR = 50;
+    if(Math.abs(dx) > LIMIAR && Math.abs(dx) > Math.abs(dy) * 1.5){
+      if(dx < 0) mudarMes(1); else mudarMes(-1);
+    }
+  }, {passive:true});
+})();
 
 /* ══════ MODAL ══════ */
 function renderCatPicker(selecionada){
@@ -1101,7 +1163,6 @@ document.getElementById('modal-bg').addEventListener('click', e=>{ if(e.target==
 /* ══════ INIT ══════ */
 (async function init(){
   renderDow();
-  renderLegend();
   await carregarEventos();
   renderGrid();
   renderUpcoming();
