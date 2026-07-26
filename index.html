@@ -217,7 +217,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
     <h1>Atividades de Transmissão</h1>
     <p>Calendário de atividades — clique num dia para ver ou criar uma atividade</p>
   </div>
-  <a class="btn-voltar-painel" href="painel_dashboards.html">&#8592; Painel</a>
 </div>
 
 <div class="wrap">
@@ -429,7 +428,9 @@ function corEvento(e){ const st = e.status ? statusInfo(e.status) : null; return
 function hojeISO(){ return fmtISO(new Date()); }
 function addDays(iso, n){ const d = new Date(iso+'T12:00:00'); d.setDate(d.getDate()+n); return fmtISO(d); }
 
-let EVENTOS = [
+const EVENTOS_STORAGE_KEY = 'nt_agendamento_eventos_v1';
+
+const EVENTOS_SEED = [
   {id:1, titulo:'Preventiva SP-CAS-JBD',      data: hojeISO(),          hora:'09:00', horaFim:'11:00', categoria:'preventiva',  status:'paraexecutar', pop:'SP-CAS-JBD', tecnico:'Gabriel Perfeito', obs:'Checklist completo trimestral.'},
   {id:2, titulo:'Troca de transceiver',        data: addDays(hojeISO(),1), hora:'14:00', horaFim:'15:00', categoria:'transceiver', status:'paraexecutar', pop:'SP-JIU-CEN', tecnico:'Marcos Joaquim',   obs:''},
   {id:3, titulo:'Indisponibilidade - visita',  data: addDays(hojeISO(),1), hora:'08:30', horaFim:'09:30', categoria:'manutencao',  status:'andamento', pop:'SP-AAS-VMC', tecnico:'Diego Rodrigues',  obs:'Cliente reportou queda de sinal.'},
@@ -438,7 +439,33 @@ let EVENTOS = [
   {id:6, titulo:'Obra de expansão — múltiplos dias', data: addDays(hojeISO(),1), dataFim: addDays(hojeISO(),3), diaTodo:true, hora:'', horaFim:'', categoria:'infra', status:'paraexecutar', pop:'SP-VIN-APS', tecnico:'Paulo Lopes', obs:'Obra de 3 dias para expansão de infraestrutura.'},
   {id:7, titulo:'Feriado / Folga',             data: addDays(hojeISO(),4), diaTodo:true, hora:'', horaFim:'', categoria:'outro', status:'cancelado', pop:'', tecnico:'', obs:''},
 ];
-let nextId = 8;
+
+let EVENTOS = [];
+let nextId = 1;
+
+function persistirEventos(){
+  try{
+    localStorage.setItem(EVENTOS_STORAGE_KEY, JSON.stringify(EVENTOS));
+  }catch(e){
+    console.warn('Não foi possível salvar os eventos localmente:', e);
+  }
+}
+
+function carregarEventos(){
+  try{
+    const raw = localStorage.getItem(EVENTOS_STORAGE_KEY);
+    if(raw !== null){
+      EVENTOS = JSON.parse(raw);
+    } else {
+      EVENTOS = EVENTOS_SEED.slice();
+      persistirEventos();
+    }
+  }catch(e){
+    EVENTOS = EVENTOS_SEED.slice();
+  }
+  nextId = EVENTOS.reduce((max,e)=>Math.max(max, e.id||0), 0) + 1;
+}
+
 let categoriasAtivas = new Set(CATEGORIAS.map(c=>c.id));
 
 let dataAtual = new Date();
@@ -747,6 +774,7 @@ function acaoExcluir(){
   const ev = getEv(id);
   if(!confirm('Excluir este evento?')) return;
   EVENTOS = EVENTOS.filter(e=>e.id!==id);
+  persistirEventos();
   fecharDetalhe();
   renderGrid(); renderUpcoming();
 }
@@ -772,6 +800,7 @@ function confirmarCopiar(){
   }
   const copia = {...ev, id: nextId++, data: novaData, dataFim: novaDataFim, comentarios: [], fotos: [], pdfs: []};
   EVENTOS.push(copia);
+  persistirEventos();
   fecharCopiarModal();
   fecharDetalhe();
   renderGrid(); renderUpcoming();
@@ -800,7 +829,7 @@ function handleFotoUpload(input){
     reader.onload = e => {
       ev.fotos.push(e.target.result);
       pendentes--;
-      if(pendentes===0) renderDetFotos();
+      if(pendentes===0){ renderDetFotos(); persistirEventos(); }
     };
     reader.readAsDataURL(file);
   });
@@ -810,6 +839,7 @@ function removerFoto(i){
   const ev = getEv(detalheAtualId);
   ev.fotos.splice(i,1);
   renderDetFotos();
+  persistirEventos();
 }
 
 /* ── ANEXOS: PDFS ── */
@@ -832,12 +862,14 @@ function handlePdfUpload(input){
     ev.pdfs.push({name: file.name, url});
   });
   renderDetPdfs();
+  persistirEventos();
   input.value = '';
 }
 function removerPdf(i){
   const ev = getEv(detalheAtualId);
   ev.pdfs.splice(i,1);
   renderDetPdfs();
+  persistirEventos();
 }
 
 /* ── COMENTÁRIOS ── */
@@ -870,6 +902,7 @@ function adicionarComentario(){
   });
   input.value = '';
   renderDetComentarios();
+  persistirEventos();
 }
 
 let statusPendente = null;
@@ -900,6 +933,7 @@ function selecionarStatusPendente(status){
 function confirmarStatus(){
   const ev = getEv(detalheAtualId);
   ev.status = statusPendente;
+  persistirEventos();
   desenharStatusPicker();
   document.getElementById('det-avatar').style.background = corEvento(ev);
   renderGrid(); renderUpcoming();
@@ -960,6 +994,7 @@ function salvarEvento(){
   } else {
     EVENTOS.push({id: nextId++, ...payload});
   }
+  persistirEventos();
   fecharModal();
   renderGrid(); renderUpcoming();
 }
@@ -968,6 +1003,7 @@ function excluirEvento(){
   if(!editandoId) return;
   if(!confirm('Excluir este evento?')) return;
   EVENTOS = EVENTOS.filter(e=>e.id!==editandoId);
+  persistirEventos();
   fecharModal();
   renderGrid(); renderUpcoming();
 }
@@ -975,6 +1011,7 @@ function excluirEvento(){
 document.getElementById('modal-bg').addEventListener('click', e=>{ if(e.target===e.currentTarget) fecharModal(); });
 
 /* ══════ INIT ══════ */
+carregarEventos();
 renderDow();
 renderLegend();
 renderGrid();
