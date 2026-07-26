@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Atividades de Transmissão</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -428,42 +429,63 @@ function corEvento(e){ const st = e.status ? statusInfo(e.status) : null; return
 function hojeISO(){ return fmtISO(new Date()); }
 function addDays(iso, n){ const d = new Date(iso+'T12:00:00'); d.setDate(d.getDate()+n); return fmtISO(d); }
 
-const EVENTOS_STORAGE_KEY = 'nt_agendamento_eventos_v1';
-
-const EVENTOS_SEED = [
-  {id:1, titulo:'Preventiva SP-CAS-JBD',      data: hojeISO(),          hora:'09:00', horaFim:'11:00', categoria:'preventiva',  status:'paraexecutar', pop:'SP-CAS-JBD', tecnico:'Gabriel Perfeito', obs:'Checklist completo trimestral.'},
-  {id:2, titulo:'Troca de transceiver',        data: addDays(hojeISO(),1), hora:'14:00', horaFim:'15:00', categoria:'transceiver', status:'paraexecutar', pop:'SP-JIU-CEN', tecnico:'Marcos Joaquim',   obs:''},
-  {id:3, titulo:'Indisponibilidade - visita',  data: addDays(hojeISO(),1), hora:'08:30', horaFim:'09:30', categoria:'manutencao',  status:'andamento', pop:'SP-AAS-VMC', tecnico:'Diego Rodrigues',  obs:'Cliente reportou queda de sinal.'},
-  {id:4, titulo:'Expansão banco de baterias',  data: addDays(hojeISO(),3), hora:'10:00', horaFim:'12:00', categoria:'infra',       status:'finalizado', pop:'SP-ITA-BSE', tecnico:'Paulo Lopes',      obs:''},
-  {id:5, titulo:'Reunião de equipe',           data: addDays(hojeISO(),5), hora:'16:00', horaFim:'17:00', categoria:'outro',       status:'paraexecutar', pop:'',           tecnico:'',                 obs:'Alinhamento semanal.'},
-  {id:6, titulo:'Obra de expansão — múltiplos dias', data: addDays(hojeISO(),1), dataFim: addDays(hojeISO(),3), diaTodo:true, hora:'', horaFim:'', categoria:'infra', status:'paraexecutar', pop:'SP-VIN-APS', tecnico:'Paulo Lopes', obs:'Obra de 3 dias para expansão de infraestrutura.'},
-  {id:7, titulo:'Feriado / Folga',             data: addDays(hojeISO(),4), diaTodo:true, hora:'', horaFim:'', categoria:'outro', status:'cancelado', pop:'', tecnico:'', obs:''},
-];
+const SUPABASE_URL = 'https://awbehzomxcsbasgltlih.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3YmVoem9teGNzYmFzZ2x0bGloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODUyMjYsImV4cCI6MjA5NTU2MTIyNn0.9zuX49pdzjdehf8pyuRxYm1QPcqHgAWoKyVYXdohLDY';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+const TABLE_AGENDA = 'agendamento_eventos';
+const BUCKET_FOTOS = 'agendamento-fotos';
+const BUCKET_PDFS = 'agendamento-pdfs';
 
 let EVENTOS = [];
-let nextId = 1;
+let nextId = 1; // usado só para eventos ainda não salvos (não deveria ocorrer, mas por segurança)
 
-function persistirEventos(){
-  try{
-    localStorage.setItem(EVENTOS_STORAGE_KEY, JSON.stringify(EVENTOS));
-  }catch(e){
-    console.warn('Não foi possível salvar os eventos localmente:', e);
-  }
+function rowToEvento(r){
+  return {
+    id: r.id,
+    titulo: r.titulo,
+    data: r.data,
+    dataFim: r.data_fim || '',
+    diaTodo: !!r.dia_todo,
+    hora: r.hora || '',
+    horaFim: r.hora_fim || '',
+    categoria: r.categoria,
+    status: r.status,
+    pop: r.pop || '',
+    tecnico: r.tecnico || '',
+    obs: r.obs || '',
+    comentarios: r.comentarios || [],
+    fotos: r.fotos || [],
+    pdfs: r.pdfs || [],
+  };
+}
+function eventoToRow(ev){
+  return {
+    titulo: ev.titulo,
+    data: ev.data,
+    data_fim: ev.dataFim || null,
+    dia_todo: !!ev.diaTodo,
+    hora: ev.hora || null,
+    hora_fim: ev.horaFim || null,
+    categoria: ev.categoria,
+    status: ev.status,
+    pop: ev.pop || null,
+    tecnico: ev.tecnico || null,
+    obs: ev.obs || null,
+  };
 }
 
-function carregarEventos(){
+async function carregarEventos(){
+  const gridEl = document.getElementById('cal-grid');
+  if(gridEl) gridEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--g500)">Carregando eventos...</div>';
   try{
-    const raw = localStorage.getItem(EVENTOS_STORAGE_KEY);
-    if(raw !== null){
-      EVENTOS = JSON.parse(raw);
-    } else {
-      EVENTOS = EVENTOS_SEED.slice();
-      persistirEventos();
-    }
+    const { data, error } = await supabaseClient.from(TABLE_AGENDA).select('*').order('data', { ascending: true });
+    if(error) throw error;
+    EVENTOS = (data || []).map(rowToEvento);
   }catch(e){
-    EVENTOS = EVENTOS_SEED.slice();
+    console.error('Erro ao carregar eventos do Supabase:', e);
+    alert('Não foi possível carregar os eventos: ' + e.message);
+    EVENTOS = [];
   }
-  nextId = EVENTOS.reduce((max,e)=>Math.max(max, e.id||0), 0) + 1;
 }
 
 let categoriasAtivas = new Set(CATEGORIAS.map(c=>c.id));
@@ -646,7 +668,7 @@ function abrirDiaModal(iso){
       const cat = catInfo(e.categoria);
       const inicial = (e.tecnico || e.titulo || '?').trim().charAt(0).toUpperCase();
       const metaParts = [e.pop, e.tecnico].filter(Boolean);
-      return `<div class="day-ev-row" onclick="fecharDiaModal();abrirDetalhe(${e.id})">
+      return `<div class="day-ev-row" onclick="fecharDiaModal();abrirDetalhe('${e.id}')">
         <div class="day-ev-time">${e.diaTodo ? '<span style="font-size:10px">Dia<br>todo</span>' : (e.hora ? esc(e.hora) : '—')}${(!e.diaTodo && e.horaFim) ? `<br><span class="fim">${esc(e.horaFim)}</span>` : ''}</div>
         <div class="day-ev-bar" style="background:${corEvento(e)}"></div>
         <div class="day-ev-info">
@@ -769,14 +791,18 @@ function acaoEditar(){
   fecharDetalhe();
   abrirModal(ev.data, id);
 }
-function acaoExcluir(){
+async function acaoExcluir(){
   const id = detalheAtualId;
-  const ev = getEv(id);
   if(!confirm('Excluir este evento?')) return;
-  EVENTOS = EVENTOS.filter(e=>e.id!==id);
-  persistirEventos();
-  fecharDetalhe();
-  renderGrid(); renderUpcoming();
+  try{
+    const { error } = await supabaseClient.from(TABLE_AGENDA).delete().eq('id', id);
+    if(error) throw error;
+    EVENTOS = EVENTOS.filter(e=>e.id!==id);
+    fecharDetalhe();
+    renderGrid(); renderUpcoming();
+  }catch(e){
+    alert('Erro ao excluir o evento: ' + e.message);
+  }
 }
 
 /* ── COPIAR PARA OUTRO DIA ── */
@@ -789,7 +815,7 @@ function abrirCopiarModal(){
 function fecharCopiarModal(){
   document.getElementById('copy-modal-bg').classList.remove('show');
 }
-function confirmarCopiar(){
+async function confirmarCopiar(){
   const novaData = document.getElementById('copy-nova-data').value;
   if(!novaData){ alert('Escolha uma data.'); return; }
   const ev = getEv(detalheAtualId);
@@ -798,12 +824,17 @@ function confirmarCopiar(){
     const delta = (new Date(ev.dataFim+'T12:00:00') - new Date(ev.data+'T12:00:00')) / 86400000;
     novaDataFim = addDays(novaData, delta);
   }
-  const copia = {...ev, id: nextId++, data: novaData, dataFim: novaDataFim, comentarios: [], fotos: [], pdfs: []};
-  EVENTOS.push(copia);
-  persistirEventos();
-  fecharCopiarModal();
-  fecharDetalhe();
-  renderGrid(); renderUpcoming();
+  const payload = eventoToRow({...ev, data: novaData, dataFim: novaDataFim});
+  try{
+    const { data: rows, error } = await supabaseClient.from(TABLE_AGENDA).insert(payload).select();
+    if(error) throw error;
+    EVENTOS.push(rowToEvento(rows[0]));
+    fecharCopiarModal();
+    fecharDetalhe();
+    renderGrid(); renderUpcoming();
+  }catch(e){
+    alert('Erro ao copiar o evento: ' + e.message);
+  }
 }
 document.getElementById('copy-modal-bg').addEventListener('click', e=>{ if(e.target===e.currentTarget) fecharCopiarModal(); });
 document.getElementById('det-modal-bg').addEventListener('click', e=>{ if(e.target===e.currentTarget) fecharDetalhe(); });
@@ -819,27 +850,44 @@ function renderDetFotos(){
       <button class="det-foto-rm" onclick="removerFoto(${i})">&#10005;</button>
     </div>`).join('');
 }
-function handleFotoUpload(input){
+async function atualizarArrayEvento(campo, novoArray){
+  const ev = getEv(detalheAtualId);
+  const { error } = await supabaseClient.from(TABLE_AGENDA).update({ [campo]: novoArray }).eq('id', ev.id);
+  if(error) throw error;
+  ev[campo] = novoArray;
+}
+
+async function handleFotoUpload(input){
   const ev = getEv(detalheAtualId);
   const files = Array.from(input.files||[]);
-  let pendentes = files.length;
-  if(!pendentes) return;
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      ev.fotos.push(e.target.result);
-      pendentes--;
-      if(pendentes===0){ renderDetFotos(); persistirEventos(); }
-    };
-    reader.readAsDataURL(file);
-  });
+  if(!files.length) return;
   input.value = '';
+  try{
+    const urls = [];
+    for(let i=0;i<files.length;i++){
+      const file = files[i];
+      const ext = (file.name.split('.').pop()||'jpg').toLowerCase();
+      const fileName = `${ev.id}_${Date.now()}_${i}.${ext}`;
+      const { error: upErr } = await supabaseClient.storage.from(BUCKET_FOTOS).upload(fileName, file, { contentType: file.type || 'image/jpeg', upsert: true });
+      if(upErr) throw upErr;
+      const { data } = supabaseClient.storage.from(BUCKET_FOTOS).getPublicUrl(fileName);
+      urls.push(data.publicUrl);
+    }
+    await atualizarArrayEvento('fotos', [...ev.fotos, ...urls]);
+    renderDetFotos();
+  }catch(e){
+    alert('Erro ao enviar foto: ' + e.message);
+  }
 }
-function removerFoto(i){
+async function removerFoto(i){
   const ev = getEv(detalheAtualId);
-  ev.fotos.splice(i,1);
-  renderDetFotos();
-  persistirEventos();
+  const novoArray = ev.fotos.filter((_,idx)=>idx!==i);
+  try{
+    await atualizarArrayEvento('fotos', novoArray);
+    renderDetFotos();
+  }catch(e){
+    alert('Erro ao remover foto: ' + e.message);
+  }
 }
 
 /* ── ANEXOS: PDFS ── */
@@ -854,22 +902,36 @@ function renderDetPdfs(){
       <button class="det-pdf-rm" onclick="removerPdf(${i})">&#10005;</button>
     </div>`).join('');
 }
-function handlePdfUpload(input){
+async function handlePdfUpload(input){
   const ev = getEv(detalheAtualId);
   const files = Array.from(input.files||[]);
-  files.forEach(file => {
-    const url = URL.createObjectURL(file);
-    ev.pdfs.push({name: file.name, url});
-  });
-  renderDetPdfs();
-  persistirEventos();
+  if(!files.length) return;
   input.value = '';
+  try{
+    const novosPdfs = [];
+    for(let i=0;i<files.length;i++){
+      const file = files[i];
+      const fileName = `${ev.id}_${Date.now()}_${i}_${file.name}`.replace(/\s+/g,'_');
+      const { error: upErr } = await supabaseClient.storage.from(BUCKET_PDFS).upload(fileName, file, { contentType: 'application/pdf', upsert: true });
+      if(upErr) throw upErr;
+      const { data } = supabaseClient.storage.from(BUCKET_PDFS).getPublicUrl(fileName);
+      novosPdfs.push({ name: file.name, url: data.publicUrl });
+    }
+    await atualizarArrayEvento('pdfs', [...ev.pdfs, ...novosPdfs]);
+    renderDetPdfs();
+  }catch(e){
+    alert('Erro ao enviar PDF: ' + e.message);
+  }
 }
-function removerPdf(i){
+async function removerPdf(i){
   const ev = getEv(detalheAtualId);
-  ev.pdfs.splice(i,1);
-  renderDetPdfs();
-  persistirEventos();
+  const novoArray = ev.pdfs.filter((_,idx)=>idx!==i);
+  try{
+    await atualizarArrayEvento('pdfs', novoArray);
+    renderDetPdfs();
+  }catch(e){
+    alert('Erro ao remover PDF: ' + e.message);
+  }
 }
 
 /* ── COMENTÁRIOS ── */
@@ -889,20 +951,24 @@ function renderDetComentarios(){
       </div>
     </div>`).join('');
 }
-function adicionarComentario(){
+async function adicionarComentario(){
   const input = document.getElementById('det-comment-input');
   const texto = input.value.trim();
   if(!texto) return;
   const ev = getEv(detalheAtualId);
   const agora = new Date();
-  ev.comentarios.push({
+  const novoComentario = {
     texto,
     autor: 'Você',
     dataFmt: agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
-  });
-  input.value = '';
-  renderDetComentarios();
-  persistirEventos();
+  };
+  try{
+    await atualizarArrayEvento('comentarios', [...ev.comentarios, novoComentario]);
+    input.value = '';
+    renderDetComentarios();
+  }catch(e){
+    alert('Erro ao salvar comentário: ' + e.message);
+  }
 }
 
 let statusPendente = null;
@@ -930,13 +996,18 @@ function selecionarStatusPendente(status){
   statusPendente = status;
   desenharStatusPicker();
 }
-function confirmarStatus(){
+async function confirmarStatus(){
   const ev = getEv(detalheAtualId);
-  ev.status = statusPendente;
-  persistirEventos();
-  desenharStatusPicker();
-  document.getElementById('det-avatar').style.background = corEvento(ev);
-  renderGrid(); renderUpcoming();
+  try{
+    const { error } = await supabaseClient.from(TABLE_AGENDA).update({ status: statusPendente }).eq('id', ev.id);
+    if(error) throw error;
+    ev.status = statusPendente;
+    desenharStatusPicker();
+    document.getElementById('det-avatar').style.background = corEvento(ev);
+    renderGrid(); renderUpcoming();
+  }catch(e){
+    alert('Erro ao salvar status: ' + e.message);
+  }
 }
 
 function abrirModal(dataISO, eventoId){
@@ -967,7 +1038,7 @@ function fecharModal(){
   editandoId = null;
 }
 
-function salvarEvento(){
+async function salvarEvento(){
   const titulo = document.getElementById('f-titulo').value.trim();
   const data = document.getElementById('f-data').value;
   if(!titulo || !data){ alert('Preencha ao menos o título e a data.'); return; }
@@ -988,34 +1059,52 @@ function salvarEvento(){
     tecnico: document.getElementById('f-tecnico').value,
     obs: document.getElementById('f-obs').value.trim(),
   };
-  if(editandoId){
-    const idx = EVENTOS.findIndex(e=>e.id===editandoId);
-    EVENTOS[idx] = {...EVENTOS[idx], ...payload};
-  } else {
-    EVENTOS.push({id: nextId++, ...payload});
+  const btnSalvar = document.querySelector('#modal-bg .btn-primary');
+  if(btnSalvar){ btnSalvar.disabled = true; btnSalvar.textContent = 'Salvando...'; }
+  try{
+    if(editandoId){
+      const { data: rows, error } = await supabaseClient.from(TABLE_AGENDA).update(eventoToRow(payload)).eq('id', editandoId).select();
+      if(error) throw error;
+      const idx = EVENTOS.findIndex(e=>e.id===editandoId);
+      EVENTOS[idx] = rowToEvento(rows[0]);
+    } else {
+      const { data: rows, error } = await supabaseClient.from(TABLE_AGENDA).insert(eventoToRow(payload)).select();
+      if(error) throw error;
+      EVENTOS.push(rowToEvento(rows[0]));
+    }
+    fecharModal();
+    renderGrid(); renderUpcoming();
+  }catch(e){
+    alert('Erro ao salvar o evento: ' + e.message);
+  }finally{
+    if(btnSalvar){ btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar'; }
   }
-  persistirEventos();
-  fecharModal();
-  renderGrid(); renderUpcoming();
 }
 
-function excluirEvento(){
+async function excluirEvento(){
   if(!editandoId) return;
   if(!confirm('Excluir este evento?')) return;
-  EVENTOS = EVENTOS.filter(e=>e.id!==editandoId);
-  persistirEventos();
-  fecharModal();
-  renderGrid(); renderUpcoming();
+  try{
+    const { error } = await supabaseClient.from(TABLE_AGENDA).delete().eq('id', editandoId);
+    if(error) throw error;
+    EVENTOS = EVENTOS.filter(e=>e.id!==editandoId);
+    fecharModal();
+    renderGrid(); renderUpcoming();
+  }catch(e){
+    alert('Erro ao excluir o evento: ' + e.message);
+  }
 }
 
 document.getElementById('modal-bg').addEventListener('click', e=>{ if(e.target===e.currentTarget) fecharModal(); });
 
 /* ══════ INIT ══════ */
-carregarEventos();
-renderDow();
-renderLegend();
-renderGrid();
-renderUpcoming();
+(async function init(){
+  renderDow();
+  renderLegend();
+  await carregarEventos();
+  renderGrid();
+  renderUpcoming();
+})();
 </script>
 </body>
 </html>
