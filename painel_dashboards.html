@@ -37,6 +37,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
   cursor:pointer;
 }
 .card:hover{transform:translateY(-3px);box-shadow:0 8px 22px rgba(26,92,55,.14)}
+.card.c-calendario{border-top-color:#c98a1f}
 .card.c-geral{border-top-color:#2e7d32;grid-column:span 2}
 .card.c-transceiver{border-top-color:#1565c0}
 .card.c-infra{border-top-color:#5e35b1}
@@ -47,6 +48,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
   width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;
   font-size:26px;
 }
+.c-calendario .icon{background:#fdf3e0;color:#c98a1f}
 .c-geral .icon{background:#e8f5e9;color:#2e7d32}
 .c-transceiver .icon{background:#e3f2fd;color:#1565c0}
 .c-infra .icon{background:#ede7f6;color:#5e35b1}
@@ -56,6 +58,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
 .card h3{font-size:16px;font-weight:700;color:var(--g800)}
 .card p{font-size:12.5px;color:var(--g500);line-height:1.5;flex:1}
 .card .go{font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px}
+.c-calendario .go{color:#c98a1f}
 .c-geral .go{color:#2e7d32}
 .c-transceiver .go{color:#1565c0}
 .c-infra .go{color:#5e35b1}
@@ -92,6 +95,13 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
   </div>
 
   <div class="grid">
+
+    <a class="card c-calendario" href="agendamento.html">
+      <div class="icon">&#128197;</div>
+      <h3>Calendário de Atividades</h3>
+      <p>Veja e gerencie todos os agendamentos por categoria, com status, comentários e anexos por evento.</p>
+      <div class="go">Abrir calendário &#8594;</div>
+    </a>
 
     <a class="card c-geral" href="dashboard_geral.html">
       <div class="icon">&#128202;</div>
