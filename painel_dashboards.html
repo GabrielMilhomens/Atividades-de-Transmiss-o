@@ -43,6 +43,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
 .card.c-infra{border-top-color:#5e35b1}
 .card.c-manutencao{border-top-color:#e07b00}
 .card.c-preventiva{border-top-color:var(--gd)}
+.card.c-importar{border-top-color:#6b7585}
 
 .card .icon{
   width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;
@@ -54,6 +55,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
 .c-infra .icon{background:#ede7f6;color:#5e35b1}
 .c-manutencao .icon{background:#fff3e0;color:#e07b00}
 .c-preventiva .icon{background:var(--gl);color:var(--gd)}
+.c-importar .icon{background:#eef0f3;color:#6b7585}
 
 .card h3{font-size:16px;font-weight:700;color:var(--g800)}
 .card p{font-size:12.5px;color:var(--g500);line-height:1.5;flex:1}
@@ -64,6 +66,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
 .c-infra .go{color:#5e35b1}
 .c-manutencao .go{color:#e07b00}
 .c-preventiva .go{color:var(--gd)}
+.c-importar .go{color:#6b7585}
 
 .foot-note{margin-top:30px;font-size:11.5px;color:var(--g500);text-align:center}
 
@@ -136,6 +139,13 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
       <h3>Preventivas em POP</h3>
       <p>Status de manutenção preventiva por POP, agendamentos pendentes e intervenções realizadas.</p>
       <div class="go">Abrir dashboard &#8594;</div>
+    </a>
+
+    <a class="card c-importar" href="importar_preventivas.html">
+      <div class="icon">&#128228;</div>
+      <h3>Importar Preventivas (planilha)</h3>
+      <p>Cadastre preventivas antigas em lote a partir de uma planilha, mesmo sem o PDF do relatório.</p>
+      <div class="go">Abrir importador &#8594;</div>
     </a>
 
   </div>
