@@ -182,11 +182,14 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
 .copy-modal-actions{display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--bdr)}
 
 /* FOTO AMPLIADA */
-.foto-ampliada-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:3000;align-items:center;justify-content:center;padding:24px}
+.foto-ampliada-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:3000;align-items:center;justify-content:center;overflow:hidden;touch-action:pan-y}
 .foto-ampliada-bg.show{display:flex}
-.foto-ampliada-bg img{max-width:100%;max-height:90vh;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.4)}
-.foto-ampliada-close{position:absolute;top:18px;right:22px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;border:none;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.foto-ampliada-track{display:flex;width:100%;height:100%;will-change:transform}
+.foto-ampliada-slide{flex:0 0 100%;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
+.foto-ampliada-slide img{max-width:100%;max-height:90vh;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.4);pointer-events:none;user-select:none;-webkit-user-drag:none}
+.foto-ampliada-close{position:absolute;top:18px;right:22px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;border:none;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2}
 .foto-ampliada-close:hover{background:rgba(255,255,255,.28)}
+.foto-ampliada-contador{position:absolute;top:26px;left:50%;transform:translateX(-50%);color:#fff;font-size:13px;font-weight:700;background:rgba(255,255,255,.15);padding:5px 14px;border-radius:20px;z-index:2}
 .ev-modal{background:#fff;border-radius:14px;max-width:460px;width:100%;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.25);max-height:92vh;display:flex;flex-direction:column}
 .ev-modal-hd{background:var(--gd);padding:16px 20px;color:#fff;display:flex;align-items:center;justify-content:space-between}
 .ev-modal-hd h3{font-size:15px;font-weight:700}
@@ -332,11 +335,11 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
   </div>
 </div>
 
-<!-- MODAL: COPIAR PARA OUTRO DIA -->
 <!-- FOTO AMPLIADA -->
-<div class="foto-ampliada-bg" id="foto-ampliada-bg" onclick="fecharFotoAmpliada()">
+<div class="foto-ampliada-bg" id="foto-ampliada-bg">
   <button class="foto-ampliada-close" onclick="fecharFotoAmpliada()">&#10005;</button>
-  <img id="foto-ampliada-img" src="" alt="">
+  <div class="foto-ampliada-contador" id="foto-ampliada-contador"></div>
+  <div class="foto-ampliada-track" id="foto-ampliada-track"></div>
 </div>
 
 <div class="modal-bg" id="copy-modal-bg">
@@ -964,17 +967,104 @@ function renderDetFotos(){
   if(!ev.fotos.length){ grid.innerHTML = ''; return; }
   grid.innerHTML = ev.fotos.map((src,i) => `
     <div class="det-foto-item">
-      <img src="${src}" alt="" onclick="abrirFotoAmpliada('${src}')">
+      <img src="${src}" alt="" onclick="abrirFotoAmpliada(${i})">
       <button class="det-foto-rm" onclick="event.stopPropagation();removerFoto(${i})">&#10005;</button>
     </div>`).join('');
 }
-function abrirFotoAmpliada(src){
-  document.getElementById('foto-ampliada-img').src = src;
+
+/* ── LIGHTBOX / CARROSSEL DE FOTOS ── */
+let fotoListaAtual = [];
+let fotoIndexAtual = 0;
+
+function abrirFotoAmpliada(index){
+  const ev = getEv(detalheAtualId);
+  fotoListaAtual = ev.fotos;
+  fotoIndexAtual = index;
+  const track = document.getElementById('foto-ampliada-track');
+  track.innerHTML = fotoListaAtual.map(src => `<div class="foto-ampliada-slide"><img src="${src}" alt=""></div>`).join('');
   document.getElementById('foto-ampliada-bg').classList.add('show');
+  posicionarTrackFotos(false);
+  atualizarContadorFotos();
 }
 function fecharFotoAmpliada(){
   document.getElementById('foto-ampliada-bg').classList.remove('show');
 }
+function atualizarContadorFotos(){
+  const el = document.getElementById('foto-ampliada-contador');
+  el.textContent = fotoListaAtual.length>1 ? `${fotoIndexAtual+1} / ${fotoListaAtual.length}` : '';
+}
+function posicionarTrackFotos(animar, offsetExtraPx, duracaoSeg){
+  const bg = document.getElementById('foto-ampliada-bg');
+  const track = document.getElementById('foto-ampliada-track');
+  const largura = bg.clientWidth;
+  const offset = (offsetExtraPx||0);
+  track.style.transition = animar ? `transform ${duracaoSeg||0.25}s cubic-bezier(.22,.61,.36,1)` : 'none';
+  track.style.transform = `translateX(${-fotoIndexAtual*largura + offset}px)`;
+}
+
+(function initSwipeFotos(){
+  const bg = document.getElementById('foto-ampliada-bg');
+  let startX=0, startY=0, startTime=0, deltaX=0, arrastando=false, houveArrasto=false;
+
+  bg.addEventListener('touchstart', e=>{
+    if(e.touches.length!==1 || !fotoListaAtual.length) return;
+    arrastando = true;
+    houveArrasto = false;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    startTime = Date.now();
+    deltaX = 0;
+    posicionarTrackFotos(false);
+  }, {passive:true});
+
+  bg.addEventListener('touchmove', e=>{
+    if(!arrastando) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    if(!houveArrasto && Math.abs(dx) < Math.abs(dy)) return; // gesto mais vertical, ignora (deixa fechar/scroll)
+    if(Math.abs(dx) > 8) houveArrasto = true;
+    deltaX = dx;
+    let offset = deltaX;
+    if((fotoIndexAtual===0 && deltaX>0) || (fotoIndexAtual===fotoListaAtual.length-1 && deltaX<0)){
+      offset = deltaX*0.35; // resistência nas pontas
+    }
+    posicionarTrackFotos(false, offset);
+  }, {passive:true});
+
+  bg.addEventListener('touchend', ()=>{
+    if(!arrastando) return;
+    arrastando = false;
+    const largura = bg.clientWidth;
+    const elapsed = Math.max(Date.now() - startTime, 1);
+    const velocidade = Math.abs(deltaX) / elapsed; // px/ms — quanto maior, mais rápido foi o gesto
+    const limiarDistancia = largura * 0.18;
+    const limiarVelocidade = 0.35;
+
+    let novoIndex = fotoIndexAtual;
+    if(houveArrasto && deltaX < 0 && (Math.abs(deltaX) > limiarDistancia || velocidade > limiarVelocidade)){
+      novoIndex = Math.min(fotoIndexAtual+1, fotoListaAtual.length-1);
+    } else if(houveArrasto && deltaX > 0 && (Math.abs(deltaX) > limiarDistancia || velocidade > limiarVelocidade)){
+      novoIndex = Math.max(fotoIndexAtual-1, 0);
+    }
+
+    // a duração do "encaixe" acompanha a velocidade do gesto: rápido = encaixa rápido, devagar = encaixa devagar
+    const duracao = Math.max(0.15, Math.min(0.5, 0.5 - velocidade*0.6));
+
+    if(novoIndex !== fotoIndexAtual){
+      fotoIndexAtual = novoIndex;
+      atualizarContadorFotos();
+    }
+    posicionarTrackFotos(true, 0, duracao);
+
+    if(!houveArrasto){
+      fecharFotoAmpliada();
+    }
+  });
+
+  window.addEventListener('resize', ()=>{ if(fotoListaAtual.length) posicionarTrackFotos(false); });
+  bg.addEventListener('click', ()=>{ if(!houveArrasto) fecharFotoAmpliada(); });
+})();
+
 async function atualizarArrayEvento(campo, novoArray){
   const ev = getEv(detalheAtualId);
   const { error } = await supabaseClient.from(TABLE_AGENDA).update({ [campo]: novoArray }).eq('id', ev.id);
