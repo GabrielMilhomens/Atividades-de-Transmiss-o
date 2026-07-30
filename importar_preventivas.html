@@ -53,6 +53,14 @@ tr:last-child td{border-bottom:none}
 .st-novo{color:#3f6b1a;font-weight:700}
 .st-existe{color:#b36200;font-weight:700}
 .st-existe-pdf{color:#c0392b;font-weight:700}
+.pdf-step{margin-top:6px}
+.pdf-lista{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.pdf-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--bdr);border-radius:8px;font-size:12.5px}
+.pdf-item .nome{flex:1;font-weight:600;color:var(--g800);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pdf-item .match{font-size:11px;font-weight:700;white-space:nowrap}
+.pdf-item .match.ok{color:#3f6b1a}
+.pdf-item .match.no{color:#c0392b}
+.pdf-item .rm{background:none;border:none;color:#c0392b;cursor:pointer;font-size:14px;flex-shrink:0}
 
 .btn{padding:10px 20px;border:none;border-radius:var(--r);font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit}
 .btn-primary{background:var(--gd);color:#fff}
@@ -146,6 +154,17 @@ tr:last-child td{border-bottom:none}
       <div class="map-fld"><label>Cidade</label><select id="map-cidade"></select></div>
       <div class="map-fld"><label>Observações</label><select id="map-obs"></select></div>
     </div>
+
+    <div class="pdf-step">
+      <h2 style="margin-top:22px"><span class="step-badge">3</span>Anexe os PDFs (opcional)</h2>
+      <p class="sub">Se você tiver os PDFs dessas preventivas, envie aqui. A gente tenta associar cada arquivo à linha certa automaticamente, pelo nome do arquivo (que deve conter o POP, ex: <em>SP-CAS-JBD_10-07-2026.pdf</em>). PDFs sem correspondência ficam sem vínculo.</p>
+      <div class="drop-area" id="drop-area-pdf" onclick="document.getElementById('pdf-input').click()">
+        <p>&#128196; Arraste os PDFs aqui ou <strong>clique para escolher os arquivos</strong></p>
+        <input type="file" id="pdf-input" accept="application/pdf" multiple onchange="handlePdfs(this.files)">
+      </div>
+      <div id="pdf-lista" class="pdf-lista"></div>
+    </div>
+
     <div class="tbl-wrap">
       <table id="tabela-preview"></table>
     </div>
@@ -276,6 +295,7 @@ function montarMapeamento(){
     document.getElementById(id).addEventListener('change', renderPreview);
   });
   renderPreview();
+  renderPdfLista();
   document.getElementById('card-mapeamento').classList.remove('hidden');
 }
 
@@ -295,6 +315,72 @@ function excelDataParaISO(valor){
   m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
   return '';
+}
+
+/* ── PDFS ── */
+let pdfFiles = [];
+
+const dropAreaPdf = document.getElementById('drop-area-pdf');
+dropAreaPdf.addEventListener('dragover', e=>{ e.preventDefault(); dropAreaPdf.classList.add('drag'); });
+dropAreaPdf.addEventListener('dragleave', ()=> dropAreaPdf.classList.remove('drag'));
+dropAreaPdf.addEventListener('drop', e=>{
+  e.preventDefault(); dropAreaPdf.classList.remove('drag');
+  if(e.dataTransfer.files.length) handlePdfs(e.dataTransfer.files);
+});
+
+function handlePdfs(fileList){
+  Array.from(fileList).forEach(f => {
+    if(f.type === 'application/pdf' && !pdfFiles.some(x => x.name === f.name && x.size === f.size)){
+      pdfFiles.push(f);
+    }
+  });
+  document.getElementById('pdf-input').value = '';
+  renderPdfLista();
+  renderPreview();
+}
+function removerPdfDaLista(idx){
+  pdfFiles.splice(idx, 1);
+  renderPdfLista();
+  renderPreview();
+}
+function normalizarTexto(s){
+  return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+}
+function encontrarPdfParaRegistro(r){
+  if(!r.pop) return null;
+  const popNorm = normalizarTexto(r.pop);
+  const candidatos = pdfFiles.filter(f => normalizarTexto(f.name).includes(popNorm));
+  if(!candidatos.length) return null;
+  if(candidatos.length === 1) return candidatos[0];
+  if(r.data_preventiva){
+    const [y,m,d] = r.data_preventiva.split('-');
+    const isoNorm = normalizarTexto(`${y}${m}${d}`);
+    const altNorm = normalizarTexto(`${d}${m}${y}`);
+    const comData = candidatos.filter(f => {
+      const n = normalizarTexto(f.name);
+      return n.includes(isoNorm) || n.includes(altNorm);
+    });
+    if(comData.length) return comData[0];
+  }
+  return candidatos[0];
+}
+function renderPdfLista(){
+  const box = document.getElementById('pdf-lista');
+  if(!pdfFiles.length){ box.innerHTML = ''; return; }
+  const todosRegistros = planilhaLinhas.length ? planilhaLinhas.map(linhaParaRegistro).filter(r=>r.pop && r.data_preventiva) : [];
+  box.innerHTML = pdfFiles.map((f,i) => {
+    const nomeNorm = normalizarTexto(f.name);
+    const achou = todosRegistros.find(r => nomeNorm.includes(normalizarTexto(r.pop)));
+    const matchHtml = achou
+      ? `<span class="match ok">&#10003; ${escHtml(achou.pop)} · ${escHtml(achou.data_preventiva)}</span>`
+      : `<span class="match no">&#10005; sem correspondência</span>`;
+    return `<div class="pdf-item">
+      <span>&#128196;</span>
+      <span class="nome">${escHtml(f.name)}</span>
+      ${matchHtml}
+      <button class="rm" onclick="removerPdfDaLista(${i})">&#10005;</button>
+    </div>`;
+  }).join('');
 }
 
 function linhaParaRegistro(linha){
@@ -324,10 +410,11 @@ function statusLinha(r){
 function renderPreview(){
   const tbl = document.getElementById('tabela-preview');
   const linhasPreview = planilhaLinhas.slice(0, 8).map(linhaParaRegistro);
-  let html = '<thead><tr><th>POP</th><th>Data</th><th>Técnico</th><th>Cidade</th><th>Observações</th><th>Status</th></tr></thead><tbody>';
+  let html = '<thead><tr><th>POP</th><th>Data</th><th>Técnico</th><th>Cidade</th><th>Observações</th><th>Status</th><th>PDF</th></tr></thead><tbody>';
   linhasPreview.forEach(r => {
     const dataOk = !!r.data_preventiva;
     const st = statusLinha(r);
+    const pdfAchado = encontrarPdfParaRegistro(r);
     html += `<tr>
       <td>${escHtml(r.pop)||'<span style="color:#c0392b">vazio</span>'}</td>
       <td>${dataOk ? escHtml(r.data_preventiva) : '<span style="color:#c0392b">inválida</span>'}</td>
@@ -335,6 +422,7 @@ function renderPreview(){
       <td>${escHtml(r.cidade)||'—'}</td>
       <td>${escHtml(r.observacoes)||'—'}</td>
       <td class="${st.cls}">${st.label}</td>
+      <td>${pdfAchado ? '📎 '+escHtml(pdfAchado.name) : '—'}</td>
     </tr>`;
   });
   html += '</tbody>';
@@ -343,10 +431,11 @@ function renderPreview(){
   const todosRegistros = planilhaLinhas.map(linhaParaRegistro).filter(r => r.pop && r.data_preventiva);
   const novos = todosRegistros.filter(r => !existentesMap.has(chaveExistente(r.pop, r.data_preventiva)));
   const jaExistem = todosRegistros.length - novos.length;
+  const comPdf = novos.filter(r => encontrarPdfParaRegistro(r)).length;
 
   document.getElementById('preview-note').textContent =
     `Mostrando ${linhasPreview.length} de ${planilhaLinhas.length} linha(s) da planilha. ` +
-    `${novos.length} serão importada(s) · ${jaExistem} já existe(m) no dashboard e será(ão) ignorada(s).`;
+    `${novos.length} serão importada(s) (${comPdf} com PDF anexado) · ${jaExistem} já existe(m) no dashboard e será(ão) ignorada(s).`;
 }
 
 async function importarRegistros(){
@@ -372,22 +461,48 @@ async function importarRegistros(){
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Importando...';
 
-  const payload = registros.map(r => ({
-    pop: r.pop,
-    data_preventiva: r.data_preventiva,
-    cidade: r.cidade || null,
-    tecnico: r.tecnico || null,
-    observacoes: r.observacoes,
-    arquivo_url: null,
-    arquivo_nome: null,
-  }));
+  let comPdfCount = 0;
+  const payload = [];
+  for(const r of registros){
+    let arquivo_url = null;
+    let arquivo_nome = null;
+    const pdf = encontrarPdfParaRegistro(r);
+    if(pdf){
+      try{
+        btn.innerHTML = `<span class="spinner"></span>Enviando PDF de ${escHtml(r.pop)}...`;
+        const nomeArquivo = `Preventiva_${r.pop.replace(/\s+/g,'_')}_${r.data_preventiva}.pdf`;
+        const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/preventivas-pdfs/${nomeArquivo}`, {
+          method: 'POST',
+          headers: {'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/pdf', 'x-upsert': 'true'},
+          body: pdf
+        });
+        if(!uploadRes.ok) throw new Error(await uploadRes.text());
+        arquivo_url = `${SUPABASE_URL}/storage/v1/object/public/preventivas-pdfs/${encodeURIComponent(nomeArquivo)}`;
+        arquivo_nome = nomeArquivo;
+        comPdfCount++;
+      }catch(e){
+        console.error('Erro ao enviar PDF de', r.pop, e);
+      }
+    }
+    payload.push({
+      pop: r.pop,
+      data_preventiva: r.data_preventiva,
+      cidade: r.cidade || null,
+      tecnico: r.tecnico || null,
+      observacoes: r.observacoes,
+      arquivo_url,
+      arquivo_nome,
+    });
+  }
+
+  btn.innerHTML = '<span class="spinner"></span>Gravando registros...';
 
   const box = document.getElementById('resultado-box');
   try{
     const { error } = await supabaseClient.from('preventivas').insert(payload);
     if(error) throw error;
     box.className = 'resultado-box show ok';
-    let msg = `✅ ${registros.length} registro(s) novo(s) importado(s) com sucesso.`;
+    let msg = `✅ ${registros.length} registro(s) novo(s) importado(s) com sucesso (${comPdfCount} com PDF anexado).`;
     if(jaExistem) msg += ` ${jaExistem} linha(s) foram ignoradas por já existirem no dashboard.`;
     if(invalidos) msg += ` ${invalidos} linha(s) foram ignoradas por falta de POP ou data válida.`;
     box.textContent = msg;
