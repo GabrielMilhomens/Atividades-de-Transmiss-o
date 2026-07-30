@@ -78,6 +78,11 @@ tr:last-child td{border-bottom:none}
 
 .hidden{display:none!important}
 
+.modo-tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.modo-tab{padding:11px 20px;border:2px solid var(--bdr);border-radius:10px;background:#fff;color:var(--g500);font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.modo-tab:hover{border-color:var(--g300)}
+.modo-tab.active{border-color:var(--gd);background:var(--gl);color:var(--gd)}
+
 /* LOGIN OVERLAY */
 .login-overlay{display:none;position:fixed;inset:0;background:rgba(20,30,20,.7);z-index:3000;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
 .login-overlay.show{display:flex}
@@ -134,6 +139,13 @@ tr:last-child td{border-bottom:none}
 
 <div class="wrap">
 
+  <div class="modo-tabs">
+    <button class="modo-tab active" id="tab-planilha" onclick="selecionarModo('planilha')">&#128202; Importar por planilha</button>
+    <button class="modo-tab" id="tab-pdf" onclick="selecionarModo('pdf')">&#128196; Cadastrar 1 registro (com ou sem PDF)</button>
+  </div>
+
+  <div id="modo-planilha">
+
   <div class="card">
     <h2><span class="step-badge">1</span>Envie a planilha</h2>
     <p class="sub">Aceita arquivos .xlsx, .xls ou .csv. A primeira linha deve conter os nomes das colunas (ex: POP, Data, Técnico, Observações).</p>
@@ -146,6 +158,7 @@ tr:last-child td{border-bottom:none}
 
   <div class="card hidden" id="card-mapeamento">
     <h2><span class="step-badge">2</span>Confirme as colunas</h2>
+
     <p class="sub">Diga qual coluna da sua planilha corresponde a cada campo. POP e Data são obrigatórios.</p>
     <div class="map-grid">
       <div class="map-fld"><label>POP <span class="map-req">*</span></label><select id="map-pop"></select></div>
@@ -176,6 +189,39 @@ tr:last-child td{border-bottom:none}
     <div class="resultado-box" id="resultado-box"></div>
   </div>
 
+  </div>
+  <!-- fim #modo-planilha -->
+
+  <div class="card hidden" id="modo-pdf">
+    <h2><span class="step-badge">1</span>Cadastrar um registro</h2>
+    <p class="sub">Preencha os dados da preventiva. O PDF é opcional — se não tiver, o registro fica salvo mesmo assim, igual à importação por planilha.</p>
+    <div class="map-grid">
+      <div class="map-fld"><label>POP <span class="map-req">*</span></label><input type="text" id="pdf-pop" placeholder="Ex: SP-CAS-JBD" oninput="atualizarCidadeUnica()"></div>
+      <div class="map-fld"><label>Data da Preventiva <span class="map-req">*</span></label><input type="date" id="pdf-data"></div>
+      <div class="map-fld"><label>Técnico</label><input type="text" id="pdf-tecnico" placeholder="Nome completo"></div>
+      <div class="map-fld"><label>Cidade</label><input type="text" id="pdf-cidade" placeholder="Preenchido automaticamente pelo POP"></div>
+    </div>
+    <div class="map-fld" style="margin-top:14px">
+      <label>Observações</label>
+      <textarea id="pdf-obs" rows="3" style="width:100%;padding:9px 11px;border:1px solid var(--bdr);border-radius:8px;font-family:inherit;font-size:13.5px"></textarea>
+    </div>
+
+    <div class="pdf-step">
+      <h2 style="margin-top:22px"><span class="step-badge">2</span>Anexe o PDF (opcional)</h2>
+      <div class="drop-area" id="drop-area-pdf-unico" onclick="document.getElementById('pdf-input-unico').click()">
+        <p>&#128196; Arraste o PDF aqui ou <strong>clique para escolher o arquivo</strong></p>
+        <input type="file" id="pdf-input-unico" accept="application/pdf" onchange="handlePdfUnico(this.files[0])">
+      </div>
+      <div id="pdf-unico-nome" class="arquivo-nome"></div>
+    </div>
+
+    <div class="actions-row">
+      <button class="btn btn-primary" id="btn-salvar-unico" onclick="salvarRegistroUnico()">&#8593; Salvar registro</button>
+      <button class="btn btn-ghost" onclick="location.reload()">Limpar formulário</button>
+    </div>
+    <div class="resultado-box" id="resultado-box-unico"></div>
+  </div>
+
 </div>
 
 <script>
@@ -186,6 +232,114 @@ let currentCidade='';
 const SUPABASE_URL = 'https://awbehzomxcsbasgltlih.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3YmVoem9teGNzYmFzZ2x0bGloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODUyMjYsImV4cCI6MjA5NTU2MTIyNn0.9zuX49pdzjdehf8pyuRxYm1QPcqHgAWoKyVYXdohLDY';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+
+/* ── MODO: PLANILHA vs PDF AVULSO ── */
+function selecionarModo(modo){
+  document.getElementById('tab-planilha').classList.toggle('active', modo==='planilha');
+  document.getElementById('tab-pdf').classList.toggle('active', modo==='pdf');
+  document.getElementById('modo-planilha').classList.toggle('hidden', modo!=='planilha');
+  document.getElementById('modo-pdf').classList.toggle('hidden', modo!=='pdf');
+}
+
+function atualizarCidadeUnica(){
+  const pop = document.getElementById('pdf-pop').value.trim();
+  const cidadeFld = document.getElementById('pdf-cidade');
+  if(!cidadeFld.dataset.editadoManual){
+    cidadeFld.value = getCidade(pop);
+  }
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  const cidadeFld = document.getElementById('pdf-cidade');
+  if(cidadeFld) cidadeFld.addEventListener('input', ()=>{ cidadeFld.dataset.editadoManual = '1'; });
+});
+
+let pdfUnicoFile = null;
+const dropAreaPdfUnico = document.getElementById('drop-area-pdf-unico');
+if(dropAreaPdfUnico){
+  dropAreaPdfUnico.addEventListener('dragover', e=>{ e.preventDefault(); dropAreaPdfUnico.classList.add('drag'); });
+  dropAreaPdfUnico.addEventListener('dragleave', ()=> dropAreaPdfUnico.classList.remove('drag'));
+  dropAreaPdfUnico.addEventListener('drop', e=>{
+    e.preventDefault(); dropAreaPdfUnico.classList.remove('drag');
+    if(e.dataTransfer.files.length) handlePdfUnico(e.dataTransfer.files[0]);
+  });
+}
+function handlePdfUnico(file){
+  if(!file) return;
+  pdfUnicoFile = file;
+  document.getElementById('pdf-unico-nome').textContent = '📄 ' + file.name;
+}
+
+async function salvarRegistroUnico(){
+  const pop = document.getElementById('pdf-pop').value.trim();
+  const data = document.getElementById('pdf-data').value;
+  const tecnico = document.getElementById('pdf-tecnico').value.trim();
+  const cidade = document.getElementById('pdf-cidade').value.trim();
+  const obs = document.getElementById('pdf-obs').value.trim();
+
+  if(!pop || !data){
+    alert('Preencha ao menos o POP e a Data da Preventiva.');
+    return;
+  }
+
+  const box = document.getElementById('resultado-box-unico');
+  box.className = 'resultado-box';
+  const btn = document.getElementById('btn-salvar-unico');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Salvando...';
+
+  try{
+    const existente = existentesMap.get(chaveExistente(pop, data));
+
+    let arquivo_url = null;
+    let arquivo_nome = null;
+    if(pdfUnicoFile){
+      const nomeArquivo = `Preventiva_${pop.replace(/\s+/g,'_')}_${data}.pdf`;
+      const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/preventivas-pdfs/${nomeArquivo}`, {
+        method: 'POST',
+        headers: {'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/pdf', 'x-upsert': 'true'},
+        body: pdfUnicoFile
+      });
+      if(!uploadRes.ok) throw new Error('Erro ao enviar PDF: ' + await uploadRes.text());
+      arquivo_url = `${SUPABASE_URL}/storage/v1/object/public/preventivas-pdfs/${encodeURIComponent(nomeArquivo)}`;
+      arquivo_nome = nomeArquivo;
+    }
+
+    if(existente && existente.temPdf){
+      box.className = 'resultado-box show err';
+      box.textContent = '⛔ Já existe um registro para esse POP e data, e ele já tem PDF anexado. Nada foi alterado.';
+      return;
+    }
+
+    if(existente && !existente.temPdf){
+      const atualizacao = { tecnico: tecnico || null, cidade: cidade || null, observacoes: obs || null };
+      if(arquivo_url){ atualizacao.arquivo_url = arquivo_url; atualizacao.arquivo_nome = arquivo_nome; }
+      const { error } = await supabaseClient.from('preventivas')
+        .update(atualizacao)
+        .eq('pop', pop).eq('data_preventiva', data);
+      if(error) throw error;
+      box.className = 'resultado-box show ok';
+      box.textContent = arquivo_url
+        ? '✅ Já existia um registro sem PDF para esse POP/data — o PDF foi anexado a ele.'
+        : '✅ Registro existente atualizado.';
+    } else {
+      const { error } = await supabaseClient.from('preventivas').insert({
+        pop, data_preventiva: data, cidade: cidade || null, tecnico: tecnico || null,
+        observacoes: obs || null, arquivo_url, arquivo_nome,
+      });
+      if(error) throw error;
+      box.className = 'resultado-box show ok';
+      box.textContent = arquivo_url ? '✅ Registro criado com PDF anexado.' : '✅ Registro criado (sem PDF).';
+    }
+
+    await carregarExistentes();
+  }catch(e){
+    box.className = 'resultado-box show err';
+    box.textContent = '❌ Erro: ' + e.message;
+  }finally{
+    btn.disabled = false;
+    btn.innerHTML = '&#8593; Salvar registro';
+  }
+}
 
 /* ── LOGIN ── */
 let currentUser = null;
