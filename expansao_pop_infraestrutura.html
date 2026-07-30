@@ -5,8 +5,6 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Expansão em POP - Infraestrutura</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -182,7 +180,7 @@ textarea{resize:vertical;min-height:60px}
         <div class="chk-photo-list" id="insercao-photos"></div>
       </div>
 
-      <div class="nav-buttons"><button class="btn btng btn-lg" onclick="goStep(1)">&#8592; Voltar</button><button class="btn btnp btn-lg" onclick="doPDF()">&#x2B07; Gerar PDF</button></div>
+      <div class="nav-buttons"><button class="btn btng btn-lg" onclick="goStep(1)">&#8592; Voltar</button><button class="btn btnp btn-lg" onclick="enviarInformacoes()">&#9993; Enviar Informações</button></div>
     </div>
 
   </div>
@@ -265,122 +263,26 @@ function showSpinner(m){document.getElementById('sov').classList.add('on');docum
 function updateSpinner(m){document.getElementById('sovMsg').textContent=m;}
 function hideSpinner(){document.getElementById('sov').classList.remove('on');}
 
-const GRN='background-color:#8CBF3F;-webkit-print-color-adjust:exact;print-color-adjust:exact;';
-const SEC_BAR=`${GRN}color:#fff;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:6px 12px;border-radius:3px;margin:16px 0 10px;display:block;word-spacing:2px`;
 
-function buildDocElement(){
-  const now=new Date();const dateStr=now.toLocaleDateString('pt-BR')+' '+now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  const v=id=>{const el=document.getElementById(id);return(el&&el.value.trim())?el.value.trim():'—';};
-  const root=document.createElement('div');root.style.cssText='width:794px;background:#fff;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#1a1a1a;line-height:1.4;';
-  const hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;background:#fff;padding:18px 24px;gap:24px;';
-  const li=document.createElement('img');li.src=LOGO;li.style.cssText='max-height:70px;object-fit:contain';hdr.appendChild(li);
-  const ht=document.createElement('div');ht.innerHTML='<div style="font-size:21px;font-weight:700;color:#3d3d3d;">Registro de Expansão em POP - Infraestrutura</div>';
-  hdr.appendChild(ht);root.appendChild(hdr);
-  const body=document.createElement('div');body.style.cssText='padding:14px 22px 22px';
-  function secBar(t){const d=document.createElement('div');d.style.cssText=SEC_BAR;d.textContent=t;return d;}
-  const LS='background:#f4f9ec;padding:5px 12px;font-size:9px;font-weight:700;color:#6b7585;text-transform:uppercase;letter-spacing:.3px;border:1px solid #e8efe0;width:14%';
-  const VS='background:#fff;padding:5px 12px;font-size:12px;color:#1a1a1a;font-weight:500;border:1px solid #e8efe0';
-  body.appendChild(secBar('Informações Gerais'));
-  const t1=document.createElement('table');t1.style.cssText='width:100%;border-collapse:separate;border-spacing:0;margin-bottom:16px;border:1px solid #d4ddd8;border-radius:6px;overflow:hidden';
-  const dataFmt=(()=>{const d=v('f-data');if(d==='—')return now.toLocaleDateString('pt-BR');const[y,m,dd]=d.split('-');return `${dd}/${m}/${y}`;})();
-  const tipoVal=v('f-tipo');
-  let t1rows=`<tr><td style="${LS}">POP</td><td style="${VS}">${v('f-pop')}</td><td style="${LS}">Data</td><td style="${VS}">${dataFmt}</td></tr><tr><td style="${LS}">Técnico</td><td style="${VS}">${v('f-tecnico')}</td><td style="${LS}">Tipo</td><td style="${VS}">${tipoVal}</td></tr>`;
-  t1.innerHTML=t1rows;
-  body.appendChild(t1);
-
-  const tipoFieldMap={
-    Energia:{l:'Energia',id:'f-energia'},
-    Equipamento:{l:'Equipamento',id:'f-equip-tipo'},
-    DIO:{l:'DIO',id:'f-dio-capacidade'},
-    'Periférico':{l:'Qual periférico',id:'f-periferico'}
-  };
-  const campoTipo=tipoFieldMap[tipoVal];
-  const qtdVal=v('f-quantidade');
-  if(campoTipo||qtdVal!=='—'){
-    body.appendChild(secBar('Informações Inserção'));
-    const descTbl=document.createElement('table');descTbl.style.cssText='width:100%;border-collapse:separate;border-spacing:0;margin-bottom:10px;border:1px solid #d4ddd8;border-radius:6px;overflow:hidden';
-    const labelTipo=campoTipo?campoTipo.l:'Tipo';
-    const valTipo=campoTipo?v(campoTipo.id):'—';
-    descTbl.innerHTML=`<tr><td style="${LS}">${labelTipo}</td><td style="${VS}">${valTipo}</td><td style="${LS}">Quantidade</td><td style="${VS}">${qtdVal}</td></tr>`;
-    body.appendChild(descTbl);
-  }
-  const espVal=v('f-especificacao');
-  if(espVal!=='—'){
-    const espBox=document.createElement('div');espBox.style.cssText='border:1px solid #d4ddd8;border-radius:5px;padding:9px 11px;font-size:12px;background:#f7faf8;margin-bottom:10px;white-space:pre-wrap';espBox.textContent=espVal;
-    body.appendChild(espBox);
-  }
-  const photos=groupPhotos.insercao||[];
-  if(photos.length){
-    for(let pi=0;pi<photos.length;pi+=2){
-      const row=document.createElement('div');row.style.cssText='display:flex;gap:10px;margin-bottom:10px';
-      [photos[pi],photos[pi+1]].forEach(ph=>{
-        if(!ph){const sp=document.createElement('div');sp.style.flex='1';row.appendChild(sp);return;}
-        const it=document.createElement('div');it.style.cssText='flex:1;border:1px solid #d4ddd8;border-radius:5px;overflow:hidden';
-        const im=document.createElement('img');im.src=ph.src;im.style.cssText='width:100%;display:block;max-height:450px;object-fit:contain';
-        it.appendChild(im);row.appendChild(it);
-      });
-      body.appendChild(row);
-    }
-  }
-
-  root.appendChild(body);
-  const foot=document.createElement('div');foot.style.cssText='border-top:1px solid #d4ddd8;padding:8px 22px;display:flex;justify-content:space-between;font-size:9px;color:#999;background:#f7faf8';
-  foot.innerHTML=`<span>Expansão em POP - Infraestrutura — Net Turbo Telecom</span><span>Gerado em ${dateStr}</span>`;root.appendChild(foot);return root;
+function resetarFormulario(){
+  document.getElementById('f-pop').value='';
+  document.getElementById('f-tecnico').value='';
+  document.getElementById('f-tipo').value='';
+  document.getElementById('f-data').valueAsDate=new Date();
+  document.getElementById('f-energia').value='';
+  document.getElementById('f-equip-tipo').value='';
+  document.getElementById('f-dio-capacidade').value='';
+  document.getElementById('f-periferico').value='';
+  document.getElementById('f-quantidade').value='';
+  document.getElementById('f-especificacao').value='';
+  groupPhotos.insercao=[];
+  renderPhotos('insercao');
+  updateStep2Blocks();
+  currentCidade='';
+  goStep(1);
 }
 
-const SUPABASE_URL='https://awbehzomxcsbasgltlih.supabase.co';
-const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3YmVoem9teGNzYmFzZ2x0bGloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODUyMjYsImV4cCI6MjA5NTU2MTIyNn0.9zuX49pdzjdehf8pyuRxYm1QPcqHgAWoKyVYXdohLDY';
-const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
-
-const FOTOS_BUCKET='expansao-infraestrutura-fotos';
-
-function dataURLtoBlob(dataURL){
-  const arr=dataURL.split(',');
-  const mime=arr[0].match(/:(.*?);/)[1];
-  const bstr=atob(arr[1]);
-  let n=bstr.length;
-  const u8arr=new Uint8Array(n);
-  while(n--){u8arr[n]=bstr.charCodeAt(n);}
-  return new Blob([u8arr],{type:mime});
-}
-
-async function uploadGroupPhotos(group,prefixo){
-  const photos=groupPhotos[group]||[];
-  const urls=[];
-  for(let i=0;i<photos.length;i++){
-    const blob=dataURLtoBlob(photos[i].src);
-    const fileName=`${prefixo}_${Date.now()}_${i}.jpg`;
-    const{error}=await supabaseClient.storage.from(FOTOS_BUCKET).upload(fileName,blob,{contentType:'image/jpeg',upsert:true});
-    if(error)throw error;
-    const{data}=supabaseClient.storage.from(FOTOS_BUCKET).getPublicUrl(fileName);
-    urls.push(data.publicUrl);
-  }
-  return urls;
-}
-
-async function salvarNoSupabase(){
-  const v=id=>{const el=document.getElementById(id);return(el&&el.value.trim())?el.value.trim():null;};
-  const tipo=v('f-tipo');
-  const tipoFieldIds={Energia:'f-energia',Equipamento:'f-equip-tipo',DIO:'f-dio-capacidade','Periférico':'f-periferico'};
-  const campoId=tipoFieldIds[tipo];
-  const popSafe=(document.getElementById('f-pop').value||'POP').replace(/\s+/g,'_');
-  const fotos=await uploadGroupPhotos('insercao',popSafe);
-  const registro={
-    pop:v('f-pop'),
-    tecnico:v('f-tecnico'),
-    tipo:tipo,
-    item:campoId?v(campoId):null,
-    quantidade:v('f-quantidade'),
-    especificacao:v('f-especificacao'),
-    fotos:fotos.length?fotos:null
-  };
-  const{error}=await supabaseClient.from('expansao_infraestrutura').insert(registro);
-  if(error)throw error;
-}
-
-function waitForImages(el){const imgs=[...el.querySelectorAll('img')];if(!imgs.length)return Promise.resolve();return Promise.all(imgs.map(img=>{if(img.complete&&img.naturalWidth>0)return Promise.resolve();return new Promise(r=>{img.onload=r;img.onerror=r;});}));}
-
-async function doPDF(){
+async function enviarInformacoes(){
   const tipo=document.getElementById('f-tipo').value;
   if(!document.getElementById('f-pop').value.trim()||!document.getElementById('f-tecnico').value.trim()||!tipo){
     showToast('Preencha os campos obrigatórios na Sessão 1','error');goStep(1);return;
@@ -390,30 +292,20 @@ async function doPDF(){
   if(campoId&&!document.getElementById(campoId).value.trim()){
     showToast('Preencha o campo correspondente ao Tipo na Sessão 2','error');goStep(2);return;
   }
-  showSpinner('Preparando...');
-  const el=buildDocElement();el.style.cssText+=';position:fixed;top:0;left:0;z-index:99999;';
-  document.body.appendChild(el);updateSpinner('Carregando imagens...');await waitForImages(el);
-  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-  updateSpinner('Capturando...');
+  const btn=document.querySelector('#step-2 .btnp');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-sm"></span>Enviando...';}
+  showSpinner('Enviando informações...');
   try{
-    const canvas=await html2canvas(el,{scale:3,useCORS:true,allowTaint:true,backgroundColor:'#fff',logging:false,width:794,windowWidth:794,scrollX:0,scrollY:-window.scrollY});
-    const{jsPDF}=window.jspdf;const pW=210;const tH=(canvas.height/canvas.width)*pW;
-    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pW,tH],compress:true});
-    pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,pW,tH);
-    const popRaw=document.getElementById('f-pop').value||'POP';
-    const pop=popRaw.replace(/\s+/g,'_');
-    const dt=new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
-    const fileName=`Expansao_Infraestrutura_${pop}_${dt}.pdf`;
-    pdf.save(fileName);
-    document.body.removeChild(el);
-    updateSpinner('Registrando na nuvem...');
-    try{
-      await salvarNoSupabase();
-      hideSpinner();showToast('✅ PDF gerado e registrado com sucesso!','success');
-    }catch(ue){
-      hideSpinner();showToast('⚠️ PDF gerado, mas houve erro ao registrar: '+ue.message,'warn');
-    }
-  }catch(e){if(document.body.contains(el))document.body.removeChild(el);hideSpinner();alert('Erro ao gerar PDF: '+e.message);}
+    await salvarNoSupabase();
+    hideSpinner();
+    showToast('✅ Informações enviadas com sucesso!','success');
+    resetarFormulario();
+  }catch(e){
+    hideSpinner();
+    showToast('⚠️ Erro ao enviar: '+e.message,'error');
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML='&#9993; Enviar Informações';}
+  }
 }
 
 const POPS_LIST=["SP-AIA-STA","SP-BGP-STM","SP-CER-PEG","SP-CJR-DCO","SP-CEG-CEG","MG-EXM-NVA","SP-SPO-ODT","SP-SPO-BRT","SP-SPO-SP2","SP-SPO-SP4","SP-SOC-DAS","SP-CAO-CMI","SP-GJA-MNE","SP-STS-CPM","SP-CAS-JBD","SP-CAS-SGB","SP-CAS-FPS","SP-CAS-JRZ","SP-CAS-OVE","SP-CAS-JDM","SP-CAS-RSL","SP-CAS-ARB","SP-IDU-PDT","SP-IIA-ITRA","SP-ITA-BSE","SP-JGU-IMB","SP-LOU-LBN","SP-MOR-JNA","SP-PLA-MRB","SP-VOS-NTT","SP-VOS-VTC","SP-VOS-CLN","SP-VOS-ALP","SP-VOS-MCC","SP-VIN-APS","SP-VIN-ACT","SP-CVA-ITL","SP-CLP-ACM","SP-ITV-SMA","SP-JIU-CEN","SP-JAI-NPL","SP-AAS-VMC","SP-CDP-COR","SP-ELI-SRC","SP-LRA-JGR","SP-LRA-MRA","SP-PAA-VMO","SP-RCO-JDA","SP-HOT-HTC","SP-NDS-BLV"].sort();

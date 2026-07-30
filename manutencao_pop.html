@@ -5,8 +5,6 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Manutenção em POP</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -163,7 +161,7 @@ textarea{resize:vertical;min-height:60px}
         <div class="fld"><label>Chegada ao POP</label><input type="datetime-local" id="f-chegada"></div>
         <div class="fld"><label>Validação</label><input type="datetime-local" id="f-validacao"></div>
       </div>
-      <div class="nav-buttons"><button class="btn btng btn-lg" onclick="goStep(2)">&#8592; Voltar</button><button class="btn btnp btn-lg" onclick="doPDF()">&#x2B07; Gerar PDF</button></div>
+      <div class="nav-buttons"><button class="btn btng btn-lg" onclick="goStep(2)">&#8592; Voltar</button><button class="btn btnp btn-lg" onclick="enviarInformacoes()">&#9993; Enviar Informações</button></div>
     </div>
 
   </div>
@@ -251,63 +249,6 @@ function showSpinner(m){document.getElementById('sov').classList.add('on');docum
 function updateSpinner(m){document.getElementById('sovMsg').textContent=m;}
 function hideSpinner(){document.getElementById('sov').classList.remove('on');}
 
-const GRN='background-color:#8CBF3F;-webkit-print-color-adjust:exact;print-color-adjust:exact;';
-const SEC_BAR=`${GRN}color:#fff;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:6px 12px;border-radius:3px;margin:16px 0 10px;display:block;word-spacing:2px`;
-
-function buildDocElement(){
-  const now=new Date();const dateStr=now.toLocaleDateString('pt-BR')+' '+now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  const v=id=>{const el=document.getElementById(id);return(el&&el.value.trim())?el.value.trim():'—';};
-  const fmtDT=id=>{const el=document.getElementById(id);if(!el||!el.value)return '—';const d=new Date(el.value);return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});};
-  const root=document.createElement('div');root.style.cssText='width:794px;background:#fff;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#1a1a1a;line-height:1.4;';
-  const hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;background:#fff;padding:18px 24px;gap:24px;';
-  const li=document.createElement('img');li.src=LOGO;li.style.cssText='max-height:70px;object-fit:contain';hdr.appendChild(li);
-  const ht=document.createElement('div');ht.innerHTML='<div style="font-size:21px;font-weight:700;color:#3d3d3d;">Registro de Manutenção em POP</div>';
-  hdr.appendChild(ht);root.appendChild(hdr);
-  const body=document.createElement('div');body.style.cssText='padding:14px 22px 22px';
-  function secBar(t){const d=document.createElement('div');d.style.cssText=SEC_BAR;d.textContent=t;return d;}
-  const LS='background:#f4f9ec;padding:5px 12px;font-size:9px;font-weight:700;color:#6b7585;text-transform:uppercase;letter-spacing:.3px;border:1px solid #e8efe0;width:14%;word-break:break-word;overflow-wrap:break-word';
-  const VS='background:#fff;padding:5px 12px;font-size:12px;color:#1a1a1a;font-weight:500;border:1px solid #e8efe0;word-break:break-word;overflow-wrap:break-word';
-  body.appendChild(secBar('Informações Gerais'));
-  const t1=document.createElement('table');t1.style.cssText='width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;margin-bottom:16px;border:1px solid #d4ddd8;border-radius:6px;overflow:hidden';
-  const tipoVal=v('f-tipo');
-  t1.innerHTML=`<tr><td style="${LS}">POP</td><td style="${VS}">${v('f-pop')}</td><td style="${LS}">Tipo</td><td style="${VS}">${tipoVal}</td></tr><tr><td style="${LS}">Técnico</td><td colspan="3" style="${VS}">${v('f-tecnico')}</td></tr>`;
-  body.appendChild(t1);
-
-  if(tipoVal==='Indisponibilidade'||tipoVal==='Verificação'){
-    body.appendChild(secBar('Informações da Ocorrência'));
-    const itemVal=v('f-item');
-    const tbl=document.createElement('table');tbl.style.cssText='width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;margin-bottom:10px;border:1px solid #d4ddd8;border-radius:6px;overflow:hidden';
-    if(itemVal==='Interface'){
-      tbl.innerHTML=`<tr><td style="${LS}">Item</td><td style="${VS}">${itemVal}</td><td style="${LS}">Equipamento</td><td style="${VS}">${v('f-interface-equipamento')}</td></tr><tr><td style="${LS}">Interface</td><td style="${VS}">${v('f-interface-interface')}</td><td style="${LS}">Identificação</td><td style="${VS}">${v('f-interface-identificacao')}</td></tr>`;
-    }else{
-      tbl.innerHTML=`<tr><td style="${LS}">Item</td><td style="${VS}">${itemVal}</td><td style="${LS}">Item Defeituoso</td><td style="${VS}">${v('f-item-defeituoso')}</td></tr>`;
-    }
-    body.appendChild(tbl);
-    const obsVal=v('f-observacoes');
-    if(obsVal!=='—'){
-      const obsBox=document.createElement('div');obsBox.style.cssText='border:1px solid #d4ddd8;border-radius:5px;padding:9px 11px;font-size:12px;background:#f7faf8;margin-bottom:16px;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word';obsBox.textContent=obsVal;
-      body.appendChild(obsBox);
-    }
-  }else if(tipoVal==='Acompanhamento'){
-    body.appendChild(secBar('Acompanhamento'));
-    const box=document.createElement('div');box.style.cssText='border:1px solid #d4ddd8;border-radius:5px;padding:9px 11px;font-size:12px;background:#f7faf8;margin-bottom:16px;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word';box.textContent=v('f-acompanhamento');
-    body.appendChild(box);
-  }else if(tipoVal==='Improdutiva'){
-    body.appendChild(secBar('Improdutiva'));
-    const box=document.createElement('div');box.style.cssText='border:1px solid #d4ddd8;border-radius:5px;padding:9px 11px;font-size:12px;background:#f7faf8;margin-bottom:16px;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word';box.textContent=v('f-improdutiva');
-    body.appendChild(box);
-  }
-
-  body.appendChild(secBar('Horários'));
-  const t3=document.createElement('table');t3.style.cssText='width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;margin-bottom:16px;border:1px solid #d4ddd8;border-radius:6px;overflow:hidden';
-  t3.innerHTML=`<tr><td style="${LS}">Abertura do Chamado</td><td style="${VS}">${fmtDT('f-abertura')}</td></tr><tr><td style="${LS}">Chegada ao POP</td><td style="${VS}">${fmtDT('f-chegada')}</td></tr><tr><td style="${LS}">Validação</td><td style="${VS}">${fmtDT('f-validacao')}</td></tr>`;
-  body.appendChild(t3);
-
-  root.appendChild(body);
-  const foot=document.createElement('div');foot.style.cssText='border-top:1px solid #d4ddd8;padding:8px 22px;display:flex;justify-content:space-between;font-size:9px;color:#999;background:#f7faf8';
-  foot.innerHTML=`<span>Manutenção em POP — Net Turbo Telecom</span><span>Gerado em ${dateStr}</span>`;root.appendChild(foot);return root;
-}
-
 const SUPABASE_URL='https://awbehzomxcsbasgltlih.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3YmVoem9teGNzYmFzZ2x0bGloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODUyMjYsImV4cCI6MjA5NTU2MTIyNn0.9zuX49pdzjdehf8pyuRxYm1QPcqHgAWoKyVYXdohLDY';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
@@ -336,9 +277,27 @@ async function salvarNoSupabase(){
   if(error)throw error;
 }
 
-function waitForImages(el){const imgs=[...el.querySelectorAll('img')];if(!imgs.length)return Promise.resolve();return Promise.all(imgs.map(img=>{if(img.complete&&img.naturalWidth>0)return Promise.resolve();return new Promise(r=>{img.onload=r;img.onerror=r;});}));}
+function resetarFormulario(){
+  document.getElementById('f-pop').value='';
+  document.getElementById('f-tecnico').value='';
+  document.getElementById('f-tipo').value='';
+  document.getElementById('f-item').value='';
+  document.getElementById('f-item-defeituoso').value='';
+  document.getElementById('f-interface-equipamento').value='';
+  document.getElementById('f-interface-interface').value='';
+  document.getElementById('f-interface-identificacao').value='';
+  document.getElementById('f-observacoes').value='';
+  document.getElementById('f-acompanhamento').value='';
+  document.getElementById('f-improdutiva').value='';
+  document.getElementById('f-abertura').value='';
+  document.getElementById('f-chegada').value='';
+  document.getElementById('f-validacao').value='';
+  updateStep2Blocks();
+  updateItemFields();
+  goStep(1);
+}
 
-async function doPDF(){
+async function enviarInformacoes(){
   const tipo=document.getElementById('f-tipo').value;
   if(!document.getElementById('f-pop').value.trim()||!document.getElementById('f-tecnico').value.trim()||!tipo){
     showToast('Preencha os campos obrigatórios na Sessão 1','error');goStep(1);return;
@@ -360,30 +319,20 @@ async function doPDF(){
   if(tipo==='Improdutiva'&&!document.getElementById('f-improdutiva').value.trim()){
     showToast('Preencha o campo de Improdutiva na Sessão 2','error');goStep(2);return;
   }
-  showSpinner('Preparando...');
-  const el=buildDocElement();el.style.cssText+=';position:fixed;top:0;left:0;z-index:99999;';
-  document.body.appendChild(el);updateSpinner('Carregando imagens...');await waitForImages(el);
-  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-  updateSpinner('Capturando...');
+  const btn=document.querySelector('#step-3 .btnp');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-sm"></span>Enviando...';}
+  showSpinner('Enviando informações...');
   try{
-    const canvas=await html2canvas(el,{scale:3,useCORS:true,allowTaint:true,backgroundColor:'#fff',logging:false,width:794,windowWidth:794,scrollX:0,scrollY:-window.scrollY});
-    const{jsPDF}=window.jspdf;const pW=210;const tH=(canvas.height/canvas.width)*pW;
-    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pW,tH],compress:true});
-    pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,pW,tH);
-    const popRaw=document.getElementById('f-pop').value||'POP';
-    const pop=popRaw.replace(/\s+/g,'_');
-    const dt=new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
-    const fileName=`Manutencao_${pop}_${dt}.pdf`;
-    pdf.save(fileName);
-    document.body.removeChild(el);
-    updateSpinner('Registrando na nuvem...');
-    try{
-      await salvarNoSupabase();
-      hideSpinner();showToast('✅ PDF gerado e registrado com sucesso!','success');
-    }catch(ue){
-      hideSpinner();showToast('⚠️ PDF gerado, mas houve erro ao registrar: '+ue.message,'warn');
-    }
-  }catch(e){if(document.body.contains(el))document.body.removeChild(el);hideSpinner();alert('Erro ao gerar PDF: '+e.message);}
+    await salvarNoSupabase();
+    hideSpinner();
+    showToast('✅ Informações enviadas com sucesso!','success');
+    resetarFormulario();
+  }catch(e){
+    hideSpinner();
+    showToast('⚠️ Erro ao enviar: '+e.message,'error');
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML='&#9993; Enviar Informações';}
+  }
 }
 
 const POPS_LIST=["SP-AIA-STA","SP-BGP-STM","SP-CER-PEG","SP-CJR-DCO","SP-CEG-CEG","MG-EXM-NVA","SP-SPO-ODT","SP-SPO-BRT","SP-SPO-SP2","SP-SPO-SP4","SP-SOC-DAS","SP-CAO-CMI","SP-GJA-MNE","SP-STS-CPM","SP-CAS-JBD","SP-CAS-SGB","SP-CAS-FPS","SP-CAS-JRZ","SP-CAS-OVE","SP-CAS-JDM","SP-CAS-RSL","SP-CAS-ARB","SP-IDU-PDT","SP-IIA-ITRA","SP-ITA-BSE","SP-JGU-IMB","SP-LOU-LBN","SP-MOR-JNA","SP-PLA-MRB","SP-VOS-NTT","SP-VOS-VTC","SP-VOS-CLN","SP-VOS-ALP","SP-VOS-MCC","SP-VIN-APS","SP-VIN-ACT","SP-CVA-ITL","SP-CLP-ACM","SP-ITV-SMA","SP-JIU-CEN","SP-JAI-NPL","SP-AAS-VMC","SP-CDP-COR","SP-ELI-SRC","SP-LRA-JGR","SP-LRA-MRA","SP-PAA-VMO","SP-RCO-JDA","SP-HOT-HTC","SP-NDS-BLV"].sort();
