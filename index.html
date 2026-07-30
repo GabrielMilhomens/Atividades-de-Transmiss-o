@@ -879,7 +879,7 @@ function abrirDetalhe(id){
   };
   const formInfo = FORM_LINKS[ev.categoria];
   document.getElementById('det-form-cta').innerHTML = formInfo
-    ? `<a class="det-form-cta" style="background:${cat.hex}" href="${formInfo.url}" target="_blank">&#128203; ${esc(formInfo.label)}<span class="arrow">&#8594;</span></a>`
+    ? `<a class="det-form-cta" style="background:${cat.hex}" href="${formInfo.url}">&#128203; ${esc(formInfo.label)}<span class="arrow">&#8594;</span></a>`
     : '';
 
   renderDetFotos();
