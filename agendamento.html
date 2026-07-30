@@ -621,16 +621,18 @@ function renderGrid(){
 
 /* ══════ RENDER: PRÓXIMOS EVENTOS ══════ */
 function renderUpcoming(){
+  const upcomingEl = document.getElementById('upcoming');
+  if(!upcomingEl) return;
   const hoje = hojeISO();
   const proximos = EVENTOS
     .filter(e => e.data >= hoje && categoriasAtivas.has(e.categoria))
     .sort((a,b)=> (a.data+((a.hora)||'00:00')).localeCompare(b.data+((b.hora)||'00:00')))
     .slice(0, 6);
   if(!proximos.length){
-    document.getElementById('upcoming').innerHTML = '<div class="empty-upcoming">Nenhum evento futuro.</div>';
+    upcomingEl.innerHTML = '<div class="empty-upcoming">Nenhum evento futuro.</div>';
     return;
   }
-  document.getElementById('upcoming').innerHTML = proximos.map(e => {
+  upcomingEl.innerHTML = proximos.map(e => {
     const cat = catInfo(e.categoria);
     const d = new Date(e.data+'T12:00:00');
     const dataFmt = d.toLocaleDateString('pt-BR', {day:'2-digit', month:'short'});
