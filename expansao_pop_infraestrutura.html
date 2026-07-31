@@ -266,6 +266,57 @@ function showSpinner(m){document.getElementById('sov').classList.add('on');docum
 function updateSpinner(m){document.getElementById('sovMsg').textContent=m;}
 function hideSpinner(){document.getElementById('sov').classList.remove('on');}
 
+const SUPABASE_URL='https://awbehzomxcsbasgltlih.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3YmVoem9teGNzYmFzZ2x0bGloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODUyMjYsImV4cCI6MjA5NTU2MTIyNn0.9zuX49pdzjdehf8pyuRxYm1QPcqHgAWoKyVYXdohLDY';
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+
+function dataURLtoBlob(dataURL){
+  const arr=dataURL.split(',');
+  const mime=arr[0].match(/:(.*?);/)[1];
+  const bstr=atob(arr[1]);
+  let n=bstr.length;
+  const u8arr=new Uint8Array(n);
+  while(n--){ u8arr[n]=bstr.charCodeAt(n); }
+  return new Blob([u8arr],{type:mime});
+}
+
+async function uploadGroupPhotos(group, prefix){
+  const fotos=groupPhotos[group]||[];
+  const urls=[];
+  for(let i=0;i<fotos.length;i++){
+    const blob=dataURLtoBlob(fotos[i].src);
+    const fileName=`${prefix}_${Date.now()}_${i}.jpg`;
+    const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/expansao-infraestrutura-fotos/${fileName}`,{
+      method:'POST',
+      headers:{'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'image/jpeg','x-upsert':'true'},
+      body:blob
+    });
+    if(!uploadRes.ok) throw new Error(await uploadRes.text());
+    urls.push(`${SUPABASE_URL}/storage/v1/object/public/expansao-infraestrutura-fotos/${encodeURIComponent(fileName)}`);
+  }
+  return urls;
+}
+
+async function salvarNoSupabase(){
+  const v=id=>{const el=document.getElementById(id);return(el&&el.value.trim())?el.value.trim():null;};
+  const popSafe=(document.getElementById('f-pop').value||'POP').replace(/\s+/g,'_');
+  const tipo=v('f-tipo');
+  const tipoFieldIds={Energia:'f-energia',Equipamento:'f-equip-tipo',DIO:'f-dio-capacidade','Periférico':'f-periferico'};
+  const item = tipo && tipoFieldIds[tipo] ? v(tipoFieldIds[tipo]) : null;
+  const fotosInsercao=await uploadGroupPhotos('insercao',`${popSafe}_insercao`);
+  const registro={
+    pop:v('f-pop'),
+    tecnico:v('f-tecnico'),
+    tipo:tipo,
+    item:item,
+    quantidade:v('f-quantidade'),
+    especificacao:v('f-especificacao'),
+    fotos:fotosInsercao.length?fotosInsercao:null
+  };
+  const{error}=await supabaseClient.from('expansao_infraestrutura').insert(registro);
+  if(error)throw error;
+}
+
 
 function resetarFormulario(){
   document.getElementById('f-pop').value='';
