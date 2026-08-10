@@ -11,7 +11,7 @@
   --gd:#8CBF3F;--gm:#8CBF3F;--gl:#f4f9ec;
   --g50:#f7f8fa;--g100:#eef0f3;--g300:#d0d5dd;
   --g500:#6b7585;--g800:#2d3444;--bdr:#d4ddd8;--r:8px;
-  --c-preventiva:#8CBF3F;--c-manutencao:#e07b00;--c-transceiver:#1565c0;--c-infra:#5e35b1;--c-outro:#6b7585;
+  --c-preventiva:#8CBF3F;--c-manutencao:#e07b00;--c-transceiver:#1565c0;--c-infra:#5e35b1;--c-gmud:#00897b;--c-outro:#6b7585;
 }
 body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800);font-size:14px;min-height:100vh;padding:0 0 60px}
 
@@ -441,6 +441,7 @@ const CATEGORIAS = [
   {id:'manutencao',   label:'Manutenção',               cor:'var(--c-manutencao)',   hex:'#e07b00'},
   {id:'transceiver',  label:'Expansão Transceiver',     cor:'var(--c-transceiver)',  hex:'#1565c0'},
   {id:'infra',        label:'Expansão Infraestrutura',  cor:'var(--c-infra)',        hex:'#5e35b1'},
+  {id:'gmud',         label:'GMUD',                     cor:'var(--c-gmud)',         hex:'#00897b'},
   {id:'outro',        label:'Outro',                    cor:'var(--c-outro)',        hex:'#6b7585'},
 ];
 
@@ -882,6 +883,7 @@ function abrirDetalhe(id){
     manutencao:  {url:'manutencao_pop.html',               label:'Iniciar formulário de Manutenção'},
     transceiver: {url:'expansao_pop.html',                 label:'Iniciar formulário de Expansão Transceiver'},
     infra:       {url:'expansao_pop_infraestrutura.html',  label:'Iniciar formulário de Expansão Infraestrutura'},
+    gmud:        {url:'gmud_pop.html',                     label:'Iniciar formulário de GMUD'},
   };
   const formInfo = FORM_LINKS[ev.categoria];
   document.getElementById('det-form-cta').innerHTML = formInfo
