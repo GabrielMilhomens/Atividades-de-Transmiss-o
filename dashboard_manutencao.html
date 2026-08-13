@@ -453,7 +453,7 @@ function celulaConferencia(r){
   if(r.conferido){
     return `<div class="conf-cell"><span class="conf-badge ok">&#10003; Validado</span></div>`;
   }
-  const btn = isAdmin() ? `<button class="btn-editar-horarios" onclick="abrirEdicaoHorarios('${r.id}')">&#9998; Editar horários</button>` : '';
+  const btn = isAdmin() ? `<button class="btn-editar-horarios" onclick="abrirEdicaoHorarios('${r.id}')">&#9998; Editar</button>` : '';
   return `<div class="conf-cell"><span class="conf-badge pendente">Pendente</span>${btn}</div>`;
 }
 
@@ -473,6 +473,7 @@ function abrirEdicaoHorarios(id){
   if(!r) return;
   horariosEditandoId = id;
   document.getElementById('edit-hor-sub').textContent = `${r.pop || '—'} · ${r.tecnico || '—'}`;
+  document.getElementById('eh-tipo').value = r.tipo || 'Indisponibilidade';
   document.getElementById('eh-abertura').value = isoParaDatetimeLocal(r.abertura);
   document.getElementById('eh-chegada').value = isoParaDatetimeLocal(r.chegada);
   document.getElementById('eh-validacao').value = isoParaDatetimeLocal(r.validacao);
@@ -487,6 +488,7 @@ async function salvarEdicaoHorarios(){
   if(!isAdmin() || !horariosEditandoId) return;
   const toISO = val => val ? new Date(val).toISOString() : null;
   const atualizacao = {
+    tipo: document.getElementById('eh-tipo').value,
     abertura: toISO(document.getElementById('eh-abertura').value),
     chegada: toISO(document.getElementById('eh-chegada').value),
     validacao: toISO(document.getElementById('eh-validacao').value),
@@ -533,10 +535,19 @@ document.getElementById('edit-hor-bg').addEventListener('click', e => { if(e.tar
 <div class="edit-hor-bg" id="edit-hor-bg">
   <div class="edit-hor-modal">
     <div class="edit-hor-hd">
-      <h3>Editar Horários</h3>
+      <h3>Editar Registro</h3>
       <p id="edit-hor-sub">—</p>
     </div>
     <div class="edit-hor-body">
+      <div class="edit-hor-fld">
+        <label>Tipo</label>
+        <select id="eh-tipo" style="width:100%;padding:9px 11px;border:1px solid var(--bdr);border-radius:6px;font-size:13.5px;font-family:inherit;background:#fff">
+          <option value="Indisponibilidade">Indisponibilidade</option>
+          <option value="Verificação">Verificação</option>
+          <option value="Acompanhamento">Acompanhamento</option>
+          <option value="Improdutiva">Improdutiva</option>
+        </select>
+      </div>
       <div class="edit-hor-fld">
         <label>Abertura do Chamado</label>
         <input type="datetime-local" id="eh-abertura">
