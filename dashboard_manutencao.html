@@ -522,7 +522,7 @@ document.getElementById('edit-hor-bg').addEventListener('click', e => { if(e.tar
       alert('Não há registros para exportar.');
       return;
     }
-    const dados = registrosFiltrados.map(r => ({ 'Data/Hora': fmtDT(r.data_hora_fmt), 'POP': r.pop || '', 'Técnico': r.tecnico || '', 'Tipo': r.tipo || '', 'Item': r.item || '', 'Item Defeituoso': r.item_defeituoso || '', 'Observações': r.observacoes || '', 'Abertura': fmtDT(r.abertura), 'Chegada': fmtDT(r.chegada), 'Validação': fmtDT(r.validacao), 'MTTA': fmtDuracao(calcMinutos(r.abertura, r.chegada)), 'MTTR': fmtDuracao(calcMinutos(r.abertura, r.validacao)) }));
+    const dados = registrosFiltrados.map(r => ({ 'Data/Hora': fmtDT(r.data_hora_fmt), 'POP': r.pop || '', 'Técnico': r.tecnico || '', 'Tipo': r.tipo || '', 'Item': r.item || '', 'Item Defeituoso': r.item_defeituoso || '', 'Observações': r.observacoes || '', 'Acompanhamento': r.acompanhamento || '', 'Improdutiva': r.improdutiva || '', 'Agendamento': r.agendamento || '', 'Abertura': fmtDT(r.abertura), 'Chegada': fmtDT(r.chegada), 'Validação': fmtDT(r.validacao), 'MTTA': fmtDuracao(calcMinutos(r.abertura, r.chegada)), 'MTTR': fmtDuracao(calcMinutos(r.abertura, r.validacao)) }));
     const ws = XLSX.utils.json_to_sheet(dados);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Registros');

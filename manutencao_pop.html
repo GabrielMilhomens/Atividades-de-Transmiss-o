@@ -118,6 +118,7 @@ textarea{resize:vertical;min-height:60px}
             <option>Verificação</option>
             <option>Acompanhamento</option>
             <option>Improdutiva</option>
+            <option>Agendamento</option>
           </select>
         </div>
       </div>
@@ -151,6 +152,10 @@ textarea{resize:vertical;min-height:60px}
 
       <div class="equip-card" id="bloco-improdutiva" style="display:none">
         <div class="fld"><label>Improdutiva</label><textarea id="f-improdutiva" rows="4"></textarea></div>
+      </div>
+
+      <div class="equip-card" id="bloco-agendamento" style="display:none">
+        <div class="fld"><label>Agendamento</label><textarea id="f-agendamento" rows="4" placeholder="Descreva o agendamento (data/horário combinado, motivo, contato, etc.)"></textarea></div>
       </div>
 
       <div class="nav-buttons"><button class="btn btng btn-lg" onclick="goStep(1)">&#8592; Voltar</button><button class="btn btnp btn-lg" onclick="goStep(3)">Próxima Sessão &#8594;</button></div>
@@ -199,12 +204,15 @@ function updateStep2Blocks(){
   document.getElementById('bloco-item').style.display='none';
   document.getElementById('bloco-acompanhamento').style.display='none';
   document.getElementById('bloco-improdutiva').style.display='none';
+  document.getElementById('bloco-agendamento').style.display='none';
   if(tipo==='Indisponibilidade'||tipo==='Verificação'){
     document.getElementById('bloco-item').style.display='block';
   }else if(tipo==='Acompanhamento'){
     document.getElementById('bloco-acompanhamento').style.display='block';
   }else if(tipo==='Improdutiva'){
     document.getElementById('bloco-improdutiva').style.display='block';
+  }else if(tipo==='Agendamento'){
+    document.getElementById('bloco-agendamento').style.display='block';
   }
   if(tipo!=='Indisponibilidade'&&tipo!=='Verificação'){
     document.getElementById('f-item').value='';
@@ -217,6 +225,7 @@ function updateStep2Blocks(){
   }
   if(tipo!=='Acompanhamento')document.getElementById('f-acompanhamento').value='';
   if(tipo!=='Improdutiva')document.getElementById('f-improdutiva').value='';
+  if(tipo!=='Agendamento')document.getElementById('f-agendamento').value='';
 }
 
 function showToast(msg,type='success'){
@@ -272,6 +281,7 @@ async function salvarNoSupabase(){
     observacoes:v('f-observacoes'),
     acompanhamento:v('f-acompanhamento'),
     improdutiva:v('f-improdutiva'),
+    agendamento:v('f-agendamento'),
     abertura:toISO('f-abertura'),
     chegada:toISO('f-chegada'),
     validacao:toISO('f-validacao')
@@ -292,6 +302,7 @@ function resetarFormulario(){
   document.getElementById('f-observacoes').value='';
   document.getElementById('f-acompanhamento').value='';
   document.getElementById('f-improdutiva').value='';
+  document.getElementById('f-agendamento').value='';
   document.getElementById('f-abertura').value='';
   document.getElementById('f-chegada').value='';
   document.getElementById('f-validacao').value='';
@@ -321,6 +332,9 @@ async function enviarInformacoes(){
   }
   if(tipo==='Improdutiva'&&!document.getElementById('f-improdutiva').value.trim()){
     showToast('Preencha o campo de Improdutiva na Sessão 2','error');goStep(2);return;
+  }
+  if(tipo==='Agendamento'&&!document.getElementById('f-agendamento').value.trim()){
+    showToast('Preencha o campo de Agendamento na Sessão 2','error');goStep(2);return;
   }
   const btn=document.querySelector('#step-3 .btnp');
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-sm"></span>Enviando...';}
