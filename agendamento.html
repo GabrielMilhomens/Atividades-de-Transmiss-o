@@ -354,8 +354,8 @@ body.is-gestao .det-menu-item.somente-gestao{display:flex!important}
         <button class="det-menu-btn" onclick="toggleMenu3Pontos(event)">&#8942;</button>
         <div class="det-menu-dd" id="det-menu-dd">
           <div class="det-menu-item somente-gestao" onclick="acaoEditar()">&#9998; Editar</div>
-          <div class="det-menu-item" onclick="abrirCopiarModal()">&#128203; Copiar para outro dia</div>
-          <div class="det-menu-item danger" onclick="acaoExcluir()">&#128465; Excluir</div>
+          <div class="det-menu-item somente-gestao" onclick="abrirCopiarModal()">&#128203; Copiar para outro dia</div>
+          <div class="det-menu-item danger somente-gestao" onclick="acaoExcluir()">&#128465; Excluir</div>
         </div>
       </div>
     </div>
@@ -1059,6 +1059,7 @@ function acaoEditar(){
   abrirModal(ev.data, id);
 }
 async function acaoExcluir(){
+  if(!isGestao()) return;
   const id = detalheAtualId;
   if(!confirm('Excluir este evento?')) return;
   try{
@@ -1074,6 +1075,7 @@ async function acaoExcluir(){
 
 /* ── COPIAR PARA OUTRO DIA ── */
 function abrirCopiarModal(){
+  if(!isGestao()) return;
   document.getElementById('det-menu-dd').classList.remove('show');
   const ev = getEv(detalheAtualId);
   document.getElementById('copy-nova-data').value = ev.data;
@@ -1083,6 +1085,7 @@ function fecharCopiarModal(){
   document.getElementById('copy-modal-bg').classList.remove('show');
 }
 async function confirmarCopiar(){
+  if(!isGestao()) return;
   const novaData = document.getElementById('copy-nova-data').value;
   if(!novaData){ alert('Escolha uma data.'); return; }
   const ev = getEv(detalheAtualId);
