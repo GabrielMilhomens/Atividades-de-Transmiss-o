@@ -51,6 +51,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#ecf0eb;color:var(--g800
 .somente-gestao{display:none!important}
 body.is-gestao .somente-gestao{display:inline-flex!important}
 body.is-gestao .somente-gestao.day-add-btn{display:flex!important}
+body.is-gestao .det-menu-item.somente-gestao{display:flex!important}
 .btn-voltar-painel:hover{background:rgba(255,255,255,.25)}
 
 .wrap{max-width:1500px;margin:20px auto;padding:0 16px;display:flex;flex-direction:column;gap:20px}
@@ -343,7 +344,7 @@ body.is-gestao .somente-gestao.day-add-btn{display:flex!important}
       <div class="det-menu-wrap">
         <button class="det-menu-btn" onclick="toggleMenu3Pontos(event)">&#8942;</button>
         <div class="det-menu-dd" id="det-menu-dd">
-          <div class="det-menu-item" onclick="acaoEditar()">&#9998; Editar</div>
+          <div class="det-menu-item somente-gestao" onclick="acaoEditar()">&#9998; Editar</div>
           <div class="det-menu-item" onclick="abrirCopiarModal()">&#128203; Copiar para outro dia</div>
           <div class="det-menu-item danger" onclick="acaoExcluir()">&#128465; Excluir</div>
         </div>
@@ -1042,6 +1043,7 @@ document.addEventListener('click', () => {
 });
 
 function acaoEditar(){
+  if(!isGestao()) return;
   const id = detalheAtualId;
   const ev = getEv(id);
   fecharDetalhe();
